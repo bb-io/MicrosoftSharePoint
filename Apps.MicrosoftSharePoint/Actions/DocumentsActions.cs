@@ -1,0 +1,167 @@
+﻿using System.Net.Mime;
+using Apps.MicrosoftSharePoint.Dtos;
+using Apps.MicrosoftSharePoint.Models.Identifiers;
+using Apps.MicrosoftSharePoint.Models.Requests;
+using Apps.MicrosoftSharePoint.Models.Responses;
+using Blackbird.Applications.Sdk.Common;
+using Blackbird.Applications.Sdk.Common.Actions;
+using Blackbird.Applications.Sdk.Common.Authentication;
+using Blackbird.Applications.Sdk.Common.Invocation;
+using Apps.MicrosoftSharePoint.Extensions;
+using RestSharp;
+using File = Blackbird.Applications.Sdk.Common.Files.File;
+
+namespace Apps.MicrosoftSharePoint.Actions;
+
+[ActionList]
+public class DocumentsActions : BaseInvocable
+{
+    private readonly IEnumerable<AuthenticationCredentialsProvider> _authenticationCredentialsProviders;
+    private readonly MicrosoftSharePointClient _client;
+
+    public DocumentsActions(InvocationContext invocationContext) : base(invocationContext)
+    {
+        _authenticationCredentialsProviders = invocationContext.AuthenticationCredentialsProviders;
+        _client = new MicrosoftSharePointClient(_authenticationCredentialsProviders);
+    }
+    
+    #region File actions
+
+    [Action("Get file metadata", Description = "Retrieve the metadata for a file from site documents.")]
+    public async Task<FileMetadataDto> GetFileMetadataById([ActionParameter] FileIdentifier fileIdentifier)
+    {
+        var request = new MicrosoftSharePointRequest($"/drive/items/{fileIdentifier.FileId}", Method.Get, 
+            _authenticationCredentialsProviders);
+        var fileMetadata = await _client.ExecuteWithHandling<FileMetadataDto>(request);
+        return fileMetadata;
+    }
+
+    [Action("List changed files", Description = "List all files that have been created or modified during past hours. " +
+                                                "If number of hours is not specified, files changed during past 24 " +
+                                                "hours are listed.")]
+    public async Task<ListFilesResponse> ListChangedFiles([ActionParameter] [Display("Hours")] int? hours)
+    {
+        var endpoint = "/drive/root/search(q='.')?$orderby=lastModifiedDateTime desc";
+        var startDateTime = (DateTime.Now - TimeSpan.FromHours(hours ?? 24)).ToUniversalTime();
+        var changedFiles = new List<FileMetadataDto>();
+        int filesCount;
+    
+        do
+        {
+            var request = new MicrosoftSharePointRequest(endpoint, Method.Get, _authenticationCredentialsProviders);
+            var result = await _client.ExecuteWithHandling<ListWrapper<FileMetadataDto>>(request);
+            var files = result.Value.Where(item => item.MimeType != null && item.LastModifiedDateTime >= startDateTime);
+            filesCount = files.Count();
+            changedFiles.AddRange(files);
+            endpoint = result.ODataNextLink == null ? null : "/drive" + result.ODataNextLink?.Split("drive")[^1];
+        } while (endpoint != null && filesCount != 0);
+    
+        return new ListFilesResponse { Files = changedFiles };
+    }
+    
+    [Action("Download file", Description = "Download a file from site documents.")]
+    public async Task<FileResponse> DownloadFileById([ActionParameter] FileIdentifier fileIdentifier)
+    {
+        var request = new MicrosoftSharePointRequest($"/drive/items/{fileIdentifier.FileId}/content", Method.Get, 
+            _authenticationCredentialsProviders);
+        var response = await _client.ExecuteWithHandling(request);
+    
+        var fileBytes = response.RawBytes;
+        var filenameHeader = response.ContentHeaders.First(h => h.Name == "Content-Disposition");
+        var filename = filenameHeader.Value.ToString().Split('"')[1];
+        var contentType = response.ContentType == MediaTypeNames.Text.Plain
+            ? MediaTypeNames.Text.RichText
+            : response.ContentType;
+        
+        return new FileResponse
+        {
+            File = new File(fileBytes)
+            {
+                Name = filename,
+                ContentType = contentType
+            }
+        };
+    }
+    
+    [Action("Upload file to folder", Description = "Upload a file to a parent folder.")]
+    public async Task<FileMetadataDto> UploadFileInFolderById([ActionParameter] FolderIdentifier folderIdentifier,
+        [ActionParameter] UploadFileRequest input)
+    {
+        const int fourMegabytesInBytes = 4194304;
+        var fileSize = input.File.Bytes.Length;
+        var contentType = Path.GetExtension(input.File.Name) == ".txt"
+            ? MediaTypeNames.Text.Plain
+            : input.File.ContentType;
+        var fileMetadata = new FileMetadataDto();
+    
+        if (fileSize < fourMegabytesInBytes)
+        {
+            var uploadRequest = new MicrosoftSharePointRequest($".//drive/items/{folderIdentifier.FolderId}:/{input.File.Name}:" +
+                                                               $"/content?@microsoft.graph.conflictBehavior={input.ConflictBehavior}",
+                Method.Put, _authenticationCredentialsProviders);
+            uploadRequest.AddParameter(contentType, input.File.Bytes, ParameterType.RequestBody);
+            fileMetadata = await _client.ExecuteWithHandling<FileMetadataDto>(uploadRequest);
+        }
+        else
+        {
+            const int chunkSize = 3932160;
+    
+            var createUploadSessionRequest = new MicrosoftSharePointRequest(
+                $".//drive/items/{folderIdentifier.FolderId}:/{input.File.Name}:/createUploadSession", Method.Post,
+                _authenticationCredentialsProviders);
+            createUploadSessionRequest.AddJsonBody($@"
+                {{
+                    ""deferCommit"": false,
+                    ""item"": {{
+                        ""@microsoft.graph.conflictBehavior"": ""{input.ConflictBehavior}"",
+                        ""name"": ""{input.File.Name}""
+                    }}
+                }}");
+    
+            var resumableUploadResult = await _client.ExecuteWithHandling<ResumableUploadDto>(createUploadSessionRequest);
+            var uploadUrl = new Uri(resumableUploadResult.UploadUrl);
+            var baseUrl = uploadUrl.GetLeftPart(UriPartial.Authority);
+            var endpoint = uploadUrl.PathAndQuery;
+            var uploadClient = new RestClient(new RestClientOptions { BaseUrl = new(baseUrl) });
+            
+            do
+            {
+                var startByte = int.Parse(resumableUploadResult.NextExpectedRanges.First().Split("-")[0]);
+                var buffer = input.File.Bytes.Skip(startByte).Take(chunkSize).ToArray();
+                var bufferSize = buffer.Length;
+                
+                var uploadRequest = new RestRequest(endpoint, Method.Put);
+                uploadRequest.AddParameter(contentType, buffer, ParameterType.RequestBody);
+                uploadRequest.AddHeader("Content-Length", bufferSize);
+                uploadRequest.AddHeader("Content-Range", $"bytes {startByte}-{startByte + bufferSize - 1}/{fileSize}");
+                
+                var uploadResponse = await uploadClient.ExecuteAsync(uploadRequest);
+                var responseContent = uploadResponse.Content;
+    
+                if (!uploadResponse.IsSuccessful)
+                {
+                    var error = responseContent.DeserializeObject<ErrorDto>();
+                    throw new Exception($"{error.Error.Code}: {error.Error.Message}");
+                }
+                
+                resumableUploadResult = responseContent.DeserializeObject<ResumableUploadDto>();
+    
+                if (resumableUploadResult.NextExpectedRanges == null)
+                    fileMetadata = responseContent.DeserializeObject<FileMetadataDto>();
+                
+            } while (resumableUploadResult.NextExpectedRanges != null);
+        }
+    
+        return fileMetadata;
+    }
+    
+    [Action("Delete file", Description = "Delete file from site documents.")]
+    public async Task DeleteFileById([ActionParameter] FileIdentifier fileIdentifier)
+    {
+        var request = new MicrosoftSharePointRequest($"/drive/items/{fileIdentifier.FileId}", Method.Delete, 
+            _authenticationCredentialsProviders); 
+        await _client.ExecuteWithHandling(request);
+    }
+    
+    #endregion
+}
