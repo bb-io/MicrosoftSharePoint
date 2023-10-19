@@ -84,7 +84,7 @@ public class DocumentsActions : BaseInvocable
     }
     
     [Action("Upload file to folder", Description = "Upload a file to a parent folder.")]
-    public async Task<FileMetadataDto> UploadFileInFolderById([ActionParameter] FolderIdentifier folderIdentifier,
+    public async Task<FileMetadataDto> UploadFileInFolderById([ActionParameter] ParentFolderIdentifier folderIdentifier,
         [ActionParameter] UploadFileRequest input)
     {
         const int fourMegabytesInBytes = 4194304;
@@ -96,7 +96,7 @@ public class DocumentsActions : BaseInvocable
     
         if (fileSize < fourMegabytesInBytes)
         {
-            var uploadRequest = new MicrosoftSharePointRequest($".//drive/items/{folderIdentifier.FolderId}:/{input.File.Name}:" +
+            var uploadRequest = new MicrosoftSharePointRequest($".//drive/items/{folderIdentifier.ParentFolderId}:/{input.File.Name}:" +
                                                                $"/content?@microsoft.graph.conflictBehavior={input.ConflictBehavior}",
                 Method.Put, _authenticationCredentialsProviders);
             uploadRequest.AddParameter(contentType, input.File.Bytes, ParameterType.RequestBody);
@@ -107,7 +107,7 @@ public class DocumentsActions : BaseInvocable
             const int chunkSize = 3932160;
     
             var createUploadSessionRequest = new MicrosoftSharePointRequest(
-                $".//drive/items/{folderIdentifier.FolderId}:/{input.File.Name}:/createUploadSession", Method.Post,
+                $".//drive/items/{folderIdentifier.ParentFolderId}:/{input.File.Name}:/createUploadSession", Method.Post,
                 _authenticationCredentialsProviders);
             createUploadSessionRequest.AddJsonBody($@"
                 {{
@@ -163,5 +163,61 @@ public class DocumentsActions : BaseInvocable
         await _client.ExecuteWithHandling(request);
     }
     
+    #endregion
+    
+    #region Folder actions
+    
+    [Action("Get folder metadata", Description = "Retrieve the metadata for a folder.")]
+    public async Task<FolderMetadataDto> GetFolderMetadataById([ActionParameter] FolderIdentifier folderIdentifier)
+    {
+        var request = new MicrosoftSharePointRequest($"/drive/items/{folderIdentifier.FolderId}", Method.Get, 
+            _authenticationCredentialsProviders);
+        var folderMetadata = await _client.ExecuteWithHandling<FolderMetadataDto>(request);
+        return folderMetadata;
+    }
+
+    [Action("List files in folder", Description = "Retrieve metadata for files contained in a folder.")]
+    public async Task<ListFilesResponse> ListFilesInFolderById([ActionParameter] FolderIdentifier folderIdentifier)
+    {
+        var filesInFolder = new List<FileMetadataDto>();
+        var endpoint = $"/drive/items/{folderIdentifier.FolderId}/children";
+        
+        do
+        {
+            var request = new MicrosoftSharePointRequest(endpoint, Method.Get, _authenticationCredentialsProviders);
+            var result = await _client.ExecuteWithHandling<ListWrapper<FileMetadataDto>>(request);
+            var files = result.Value.Where(item => item.MimeType != null);
+            filesInFolder.AddRange(files);
+            endpoint = result.ODataNextLink == null ? null : "/drive" + result.ODataNextLink?.Split("drive")[^1];
+        } while (endpoint != null);
+        
+        return new ListFilesResponse { Files = filesInFolder };
+    }
+    
+    [Action("Create folder in parent folder", Description = "Create a new folder in parent folder.")]
+    public async Task<FolderMetadataDto> CreateFolderInParentFolderWithId(
+        [ActionParameter] ParentFolderIdentifier folderIdentifier,
+        [ActionParameter] [Display("Folder name")] string folderName)
+    {
+        var request = new MicrosoftSharePointRequest($"/drive/items/{folderIdentifier.ParentFolderId}/children", 
+            Method.Post, _authenticationCredentialsProviders);
+        request.AddJsonBody(new
+        {
+            Name = folderName,
+            Folder = new { }
+        });
+    
+        var folderMetadata = await _client.ExecuteWithHandling<FolderMetadataDto>(request);
+        return folderMetadata;
+    }
+    
+    [Action("Delete folder", Description = "Delete a folder.")]
+    public async Task DeleteFolderById([ActionParameter] FolderIdentifier folderIdentifier)
+    {
+        var request = new MicrosoftSharePointRequest($"/drive/items/{folderIdentifier.FolderId}", Method.Delete, 
+            _authenticationCredentialsProviders); 
+        await _client.ExecuteWithHandling(request);
+    }
+
     #endregion
 }
