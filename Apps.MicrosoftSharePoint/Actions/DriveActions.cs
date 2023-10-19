@@ -14,12 +14,12 @@ using File = Blackbird.Applications.Sdk.Common.Files.File;
 namespace Apps.MicrosoftSharePoint.Actions;
 
 [ActionList]
-public class DocumentsActions : BaseInvocable
+public class DriveActions : BaseInvocable
 {
     private readonly IEnumerable<AuthenticationCredentialsProvider> _authenticationCredentialsProviders;
     private readonly MicrosoftSharePointClient _client;
 
-    public DocumentsActions(InvocationContext invocationContext) : base(invocationContext)
+    public DriveActions(InvocationContext invocationContext) : base(invocationContext)
     {
         _authenticationCredentialsProviders = invocationContext.AuthenticationCredentialsProviders;
         _client = new MicrosoftSharePointClient(_authenticationCredentialsProviders);
