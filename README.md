@@ -15,15 +15,29 @@ Before you can connect you need to make sure that:
 - You have a Microsoft 365 account.
 - You have a [SharePoint site created](https://support.microsoft.com/en-gb/office/create-a-site-in-sharepoint-4d1e11bf-8ddc-499d-b889-2b48d10b1ce8).
 
+### How to find site name
+
+You can find site name:
+
+- On SharePoint start page.
+![Start page](image/README/sharepoint-start-page.png)
+
+- By clicking on _My sites_ tab.
+![My sites](image/README/my-sites.png)
+
+From there, you can view your sites and choose the one you want to work with.
+
 ## Connecting
 
 1. Navigate to apps and search for Microsoft SharePoint. If you cannot find Microsoft SharePoint then click _Add App_ in the top right corner, select Microsoft SharePoint and add the app to your Blackbird environment.
 2. Click _Add Connection_.
 3. Name your connection for future reference e.g. 'My organization'.
-4. Fill in the display name of your site e.g. 'My communication site'.
+4. Fill in the display name of your site e.g. 'My communication site'. 
 5. Click _Authorize connection_.
 6. Follow the instructions that Microsoft gives you, authorizing Blackbird.io to act on your behalf.
 7. When you return to Blackbird, confirm that the connection has appeared and the status is _Connected_.
+
+Note: if you have just created a site, you should wait a couple of minutes before trying to connect.
 
 ![Connecting](image/README/connecting.png)
 
