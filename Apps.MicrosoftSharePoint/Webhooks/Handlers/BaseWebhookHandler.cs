@@ -11,7 +11,7 @@ namespace Apps.MicrosoftSharePoint.Webhooks.Handlers;
 
 public abstract class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, IAsyncRenewableWebhookEventHandler
 {
-    private const string BridgeWebhooksUrl = ApplicationConstants.BridgeServiceUrl + $"/webhooks/{ApplicationConstants.AppName}";
+    private string BridgeWebhooksUrl = "";
     
     private readonly string _subscriptionEvent;
     
@@ -21,6 +21,7 @@ public abstract class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, 
         : base(invocationContext)
     {
         _subscriptionEvent = subscriptionEvent;
+        BridgeWebhooksUrl = InvocationContext.UriInfo.BridgeServiceUrl.ToString().TrimEnd('/') + $"/webhooks/{ApplicationConstants.AppName}";
     }
 
     protected abstract string GetResource();
@@ -30,7 +31,7 @@ public abstract class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, 
     {
         var sharePointClient = new RestClient(new RestClientOptions("https://graph.microsoft.com/v1.0"));
         var targetSubscription = await GetTargetSubscription(authenticationCredentialsProviders, sharePointClient);
-        var bridgeService = new BridgeService();
+        var bridgeService = new BridgeService(InvocationContext.UriInfo.BridgeServiceUrl.ToString().TrimEnd('/'));
         string subscriptionId;
         
         if (targetSubscription is null)
@@ -79,7 +80,7 @@ public abstract class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, 
         var targetSubscription = await GetTargetSubscription(authenticationCredentialsProviders, sharePointClient);
         var subscriptionId = targetSubscription.Id;
         
-        var bridgeService = new BridgeService();
+        var bridgeService = new BridgeService(InvocationContext.UriInfo.BridgeServiceUrl.ToString().TrimEnd('/'));
         var webhooksLeft = await bridgeService.Unsubscribe(values["payloadUrl"], subscriptionId, _subscriptionEvent);
 
         if (webhooksLeft == 0)
