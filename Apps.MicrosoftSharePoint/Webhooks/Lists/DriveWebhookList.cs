@@ -106,7 +106,7 @@ public class DriveWebhookList : BaseInvocable
 
     private async Task StoreDeltaToken(string oldDeltaToken, string newDeltaToken)
     {
-        const string bridgeWebhooksUrl = ApplicationConstants.BridgeServiceUrl + $"/webhooks/{ApplicationConstants.AppName}";
+        string bridgeWebhooksUrl = InvocationContext.UriInfo.BridgeServiceUrl.ToString().TrimEnd('/') + $"/webhooks/{ApplicationConstants.AppName}";
         
         var siteId = InvocationContext.AuthenticationCredentialsProviders.First(p => p.KeyName == "SiteId").Value;
         var resource = $"/sites/{siteId}/drive/root";
@@ -117,7 +117,7 @@ public class DriveWebhookList : BaseInvocable
         var targetSubscription = subscriptions.Single(s => s.Resource == resource
                                                                    && s.NotificationUrl == bridgeWebhooksUrl);
 
-        var bridgeService = new BridgeService();
+        var bridgeService = new BridgeService(InvocationContext.UriInfo.BridgeServiceUrl.ToString().TrimEnd('/'));
         
         lock (LockObject)
         {
