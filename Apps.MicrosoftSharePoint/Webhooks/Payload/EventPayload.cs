@@ -1,4 +1,4 @@
-﻿using Apps.MicrosoftSharePoint.Dtos;
+﻿using Apps.MicrosoftSharePoint.Models.Dtos;
 
 namespace Apps.MicrosoftSharePoint.Webhooks.Payload;
 

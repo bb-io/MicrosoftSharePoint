@@ -3,7 +3,7 @@ using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Dynamic;
 using File = Blackbird.Applications.Sdk.Common.Files.File;
 
-namespace Apps.MicrosoftSharePoint.Models.Requests;
+namespace Apps.MicrosoftSharePoint.Models.Requests.Documents;
 
 public class UploadFileRequest
 {

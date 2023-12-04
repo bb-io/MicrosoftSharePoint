@@ -1,7 +1,9 @@
 ﻿using System.Net;
-using Apps.MicrosoftSharePoint.Dtos;
+using Apps.MicrosoftSharePoint.Api;
+using Apps.MicrosoftSharePoint.Models.Dtos;
 using Apps.MicrosoftSharePoint.Extensions;
-using Apps.MicrosoftSharePoint.Models.Responses;
+using Apps.MicrosoftSharePoint.Models.Dtos.Documents;
+using Apps.MicrosoftSharePoint.Models.Responses.Documents;
 using Apps.MicrosoftSharePoint.Webhooks.Handlers;
 using Apps.MicrosoftSharePoint.Webhooks.Inputs;
 using Apps.MicrosoftSharePoint.Webhooks.Payload;
@@ -15,18 +17,18 @@ using RestSharp;
 namespace Apps.MicrosoftSharePoint.Webhooks.Lists;
 
 [WebhookList]
-public class DriveWebhookList : BaseInvocable
+public class DocumentWebhookList : BaseInvocable
 {
     private static readonly object LockObject = new();
     
     private readonly IEnumerable<AuthenticationCredentialsProvider> _authenticationCredentialsProviders;
 
-    public DriveWebhookList(InvocationContext invocationContext) : base(invocationContext)
+    public DocumentWebhookList(InvocationContext invocationContext) : base(invocationContext)
     {
         _authenticationCredentialsProviders = invocationContext.AuthenticationCredentialsProviders;
     }
 
-    [Webhook("On files updated or created", typeof(DriveWebhookHandler), 
+    [Webhook("On files updated or created", typeof(DocumentWebhookHandler), 
         Description = "This webhook is triggered when files are updated or created.")]
     public async Task<WebhookResponse<ListFilesResponse>> OnFilesUpdatedOrCreated(WebhookRequest request, 
         [WebhookParameter] FolderInput folder, [WebhookParameter] ContentTypeInput contentType)
@@ -53,7 +55,7 @@ public class DriveWebhookList : BaseInvocable
         };
     }
     
-    [Webhook("On folders updated or created", typeof(DriveWebhookHandler), 
+    [Webhook("On folders updated or created", typeof(DocumentWebhookHandler), 
         Description = "This webhook is triggered when folders are updated or created.")]
     public async Task<WebhookResponse<ListFoldersResponse>> OnFoldersUpdatedOrCreated(WebhookRequest request, 
         [WebhookParameter] FolderInput folder)
@@ -84,16 +86,15 @@ public class DriveWebhookList : BaseInvocable
     {
         var client = new MicrosoftSharePointClient(_authenticationCredentialsProviders);
         var items = new List<T>();
-        var request = new MicrosoftSharePointRequest($"/drive/root/delta?token={deltaToken}", Method.Get, 
-            _authenticationCredentialsProviders);
-        var result = client.ExecuteWithHandling<ListWrapper<T>>(request).Result;
+        var request = new MicrosoftSharePointRequest($"/drive/root/delta?token={deltaToken}", Method.Get);
+        var result = client.ExecuteWithErrorHandling<ListWrapper<T>>(request).Result;
         items.AddRange(result.Value);
 
         while (result.ODataNextLink != null)
         {
             var endpoint = result.ODataNextLink?.Split("v1.0")[1];
-            request = new MicrosoftSharePointRequest(endpoint, Method.Get, _authenticationCredentialsProviders);
-            result = client.ExecuteWithHandling<ListWrapper<T>>(request).Result;
+            request = new MicrosoftSharePointRequest(endpoint, Method.Get);
+            result = client.ExecuteWithErrorHandling<ListWrapper<T>>(request).Result;
             items.AddRange(result.Value);
         }
         
@@ -111,7 +112,7 @@ public class DriveWebhookList : BaseInvocable
         var siteId = InvocationContext.AuthenticationCredentialsProviders.First(p => p.KeyName == "SiteId").Value;
         var resource = $"/sites/{siteId}/drive/root";
         var sharePointClient = new RestClient(new RestClientOptions("https://graph.microsoft.com/v1.0"));
-        var subscriptionsRequest = new MicrosoftSharePointRequest("/subscriptions", Method.Get, _authenticationCredentialsProviders);
+        var subscriptionsRequest = new MicrosoftSharePointRequest("/subscriptions", Method.Get);
         var response = await sharePointClient.ExecuteAsync(subscriptionsRequest);
         var subscriptions = response.Content.DeserializeObject<SubscriptionWrapper>().Value;
         var targetSubscription = subscriptions.Single(s => s.Resource == resource

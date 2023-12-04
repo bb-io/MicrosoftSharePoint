@@ -1,12 +1,13 @@
-﻿using Apps.MicrosoftSharePoint.Dtos;
-using Blackbird.Applications.Sdk.Common;
+﻿using Apps.MicrosoftSharePoint.Api;
+using Apps.MicrosoftSharePoint.Models.Dtos;
+using Apps.MicrosoftSharePoint.Models.Dtos.Documents;
 using Blackbird.Applications.Sdk.Common.Dynamic;
 using Blackbird.Applications.Sdk.Common.Invocation;
 using RestSharp;
 
 namespace Apps.MicrosoftSharePoint.DataSourceHandlers;
 
-public class FolderDataSourceHandler : BaseInvocable, IAsyncDataSourceHandler
+public class FolderDataSourceHandler : MicrosoftSharePointInvocable, IAsyncDataSourceHandler
 {
     public FolderDataSourceHandler(InvocationContext invocationContext) : base(invocationContext)
     {
@@ -15,7 +16,6 @@ public class FolderDataSourceHandler : BaseInvocable, IAsyncDataSourceHandler
     public async Task<Dictionary<string, string>> GetDataAsync(DataSourceContext context,
         CancellationToken cancellationToken)
     {
-        var client = new MicrosoftSharePointClient(InvocationContext.AuthenticationCredentialsProviders);
         var endpoint = "/drive/list/items?$select=id&$expand=driveItem($select=id,name,parentReference)&" +
                        "$filter=fields/ContentType eq 'Folder'&$top=20";
         var foldersDictionary = new Dictionary<string, string>();
@@ -23,10 +23,9 @@ public class FolderDataSourceHandler : BaseInvocable, IAsyncDataSourceHandler
 
         do
         {
-            var request = new MicrosoftSharePointRequest(endpoint, Method.Get, 
-                InvocationContext.AuthenticationCredentialsProviders);
+            var request = new MicrosoftSharePointRequest(endpoint, Method.Get);
             request.AddHeader("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly");
-            var folders = await client.ExecuteWithHandling<ListWrapper<DriveItemWrapper<FolderMetadataDto>>>(request);
+            var folders = await Client.ExecuteWithErrorHandling<ListWrapper<DriveItemWrapper<FolderMetadataDto>>>(request);
             var filteredFolders = folders.Value
                 .Select(w => w.DriveItem)
                 .Select(i => new { i.Id, Path = GetFolderPath(i) })
@@ -57,9 +56,8 @@ public class FolderDataSourceHandler : BaseInvocable, IAsyncDataSourceHandler
         if (string.IsNullOrWhiteSpace(context.SearchString) 
             || rootName.Contains(context.SearchString, StringComparison.OrdinalIgnoreCase))
         {
-            var request = new MicrosoftSharePointRequest("/drive/root", Method.Get,
-                InvocationContext.AuthenticationCredentialsProviders);
-            var rootFolder = await client.ExecuteWithHandling<FolderMetadataDto>(request);
+            var request = new MicrosoftSharePointRequest("/drive/root", Method.Get);
+            var rootFolder = await Client.ExecuteWithErrorHandling<FolderMetadataDto>(request);
             foldersDictionary.Add(rootFolder.Id, rootName);
         }
             

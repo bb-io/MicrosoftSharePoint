@@ -1,4 +1,4 @@
-﻿namespace Apps.MicrosoftSharePoint.Dtos;
+﻿namespace Apps.MicrosoftSharePoint.Models.Dtos;
 
 public class ErrorDto
 {

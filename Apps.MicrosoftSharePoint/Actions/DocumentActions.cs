@@ -1,28 +1,25 @@
 ﻿using System.Net.Mime;
-using Apps.MicrosoftSharePoint.Dtos;
+using Apps.MicrosoftSharePoint.Api;
+using Apps.MicrosoftSharePoint.Models.Dtos;
 using Apps.MicrosoftSharePoint.Models.Identifiers;
-using Apps.MicrosoftSharePoint.Models.Requests;
 using Apps.MicrosoftSharePoint.Models.Responses;
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Actions;
-using Blackbird.Applications.Sdk.Common.Authentication;
 using Blackbird.Applications.Sdk.Common.Invocation;
 using Apps.MicrosoftSharePoint.Extensions;
+using Apps.MicrosoftSharePoint.Models.Dtos.Documents;
+using Apps.MicrosoftSharePoint.Models.Requests.Documents;
+using Apps.MicrosoftSharePoint.Models.Responses.Documents;
 using RestSharp;
 using File = Blackbird.Applications.Sdk.Common.Files.File;
 
 namespace Apps.MicrosoftSharePoint.Actions;
 
 [ActionList]
-public class DriveActions : BaseInvocable
+public class DocumentActions : MicrosoftSharePointInvocable
 {
-    private readonly IEnumerable<AuthenticationCredentialsProvider> _authenticationCredentialsProviders;
-    private readonly MicrosoftSharePointClient _client;
-
-    public DriveActions(InvocationContext invocationContext) : base(invocationContext)
+    public DocumentActions(InvocationContext invocationContext) : base(invocationContext)
     {
-        _authenticationCredentialsProviders = invocationContext.AuthenticationCredentialsProviders;
-        _client = new MicrosoftSharePointClient(_authenticationCredentialsProviders);
     }
     
     #region File actions
@@ -30,9 +27,8 @@ public class DriveActions : BaseInvocable
     [Action("Get file metadata", Description = "Retrieve the metadata for a file from site documents.")]
     public async Task<FileMetadataDto> GetFileMetadataById([ActionParameter] FileIdentifier fileIdentifier)
     {
-        var request = new MicrosoftSharePointRequest($"/drive/items/{fileIdentifier.FileId}", Method.Get, 
-            _authenticationCredentialsProviders);
-        var fileMetadata = await _client.ExecuteWithHandling<FileMetadataDto>(request);
+        var request = new MicrosoftSharePointRequest($"/drive/items/{fileIdentifier.FileId}", Method.Get);
+        var fileMetadata = await Client.ExecuteWithErrorHandling<FileMetadataDto>(request);
         return fileMetadata;
     }
 
@@ -48,8 +44,8 @@ public class DriveActions : BaseInvocable
     
         do
         {
-            var request = new MicrosoftSharePointRequest(endpoint, Method.Get, _authenticationCredentialsProviders);
-            var result = await _client.ExecuteWithHandling<ListWrapper<FileMetadataDto>>(request);
+            var request = new MicrosoftSharePointRequest(endpoint, Method.Get);
+            var result = await Client.ExecuteWithErrorHandling<ListWrapper<FileMetadataDto>>(request);
             var files = result.Value.Where(item => item.MimeType != null && item.LastModifiedDateTime >= startDateTime);
             filesCount = files.Count();
             changedFiles.AddRange(files);
@@ -62,9 +58,8 @@ public class DriveActions : BaseInvocable
     [Action("Download file", Description = "Download a file from site documents.")]
     public async Task<FileResponse> DownloadFileById([ActionParameter] FileIdentifier fileIdentifier)
     {
-        var request = new MicrosoftSharePointRequest($"/drive/items/{fileIdentifier.FileId}/content", Method.Get, 
-            _authenticationCredentialsProviders);
-        var response = await _client.ExecuteWithHandling(request);
+        var request = new MicrosoftSharePointRequest($"/drive/items/{fileIdentifier.FileId}/content", Method.Get);
+        var response = await Client.ExecuteWithErrorHandling(request);
     
         var fileBytes = response.RawBytes;
         var filenameHeader = response.ContentHeaders.First(h => h.Name == "Content-Disposition");
@@ -98,17 +93,16 @@ public class DriveActions : BaseInvocable
         {
             var uploadRequest = new MicrosoftSharePointRequest($".//drive/items/{folderIdentifier.ParentFolderId}:/{input.File.Name}:" +
                                                                $"/content?@microsoft.graph.conflictBehavior={input.ConflictBehavior}",
-                Method.Put, _authenticationCredentialsProviders);
+                Method.Put);
             uploadRequest.AddParameter(contentType, input.File.Bytes, ParameterType.RequestBody);
-            fileMetadata = await _client.ExecuteWithHandling<FileMetadataDto>(uploadRequest);
+            fileMetadata = await Client.ExecuteWithErrorHandling<FileMetadataDto>(uploadRequest);
         }
         else
         {
             const int chunkSize = 3932160;
     
             var createUploadSessionRequest = new MicrosoftSharePointRequest(
-                $".//drive/items/{folderIdentifier.ParentFolderId}:/{input.File.Name}:/createUploadSession", Method.Post,
-                _authenticationCredentialsProviders);
+                $".//drive/items/{folderIdentifier.ParentFolderId}:/{input.File.Name}:/createUploadSession", Method.Post);
             createUploadSessionRequest.AddJsonBody($@"
                 {{
                     ""deferCommit"": false,
@@ -118,7 +112,7 @@ public class DriveActions : BaseInvocable
                     }}
                 }}");
     
-            var resumableUploadResult = await _client.ExecuteWithHandling<ResumableUploadDto>(createUploadSessionRequest);
+            var resumableUploadResult = await Client.ExecuteWithErrorHandling<ResumableUploadDto>(createUploadSessionRequest);
             var uploadUrl = new Uri(resumableUploadResult.UploadUrl);
             var baseUrl = uploadUrl.GetLeftPart(UriPartial.Authority);
             var endpoint = uploadUrl.PathAndQuery;
@@ -158,9 +152,8 @@ public class DriveActions : BaseInvocable
     [Action("Delete file", Description = "Delete file from site documents.")]
     public async Task DeleteFileById([ActionParameter] FileIdentifier fileIdentifier)
     {
-        var request = new MicrosoftSharePointRequest($"/drive/items/{fileIdentifier.FileId}", Method.Delete, 
-            _authenticationCredentialsProviders); 
-        await _client.ExecuteWithHandling(request);
+        var request = new MicrosoftSharePointRequest($"/drive/items/{fileIdentifier.FileId}", Method.Delete); 
+        await Client.ExecuteWithErrorHandling(request);
     }
     
     #endregion
@@ -170,9 +163,8 @@ public class DriveActions : BaseInvocable
     [Action("Get folder metadata", Description = "Retrieve the metadata for a folder.")]
     public async Task<FolderMetadataDto> GetFolderMetadataById([ActionParameter] FolderIdentifier folderIdentifier)
     {
-        var request = new MicrosoftSharePointRequest($"/drive/items/{folderIdentifier.FolderId}", Method.Get, 
-            _authenticationCredentialsProviders);
-        var folderMetadata = await _client.ExecuteWithHandling<FolderMetadataDto>(request);
+        var request = new MicrosoftSharePointRequest($"/drive/items/{folderIdentifier.FolderId}", Method.Get);
+        var folderMetadata = await Client.ExecuteWithErrorHandling<FolderMetadataDto>(request);
         return folderMetadata;
     }
 
@@ -184,8 +176,8 @@ public class DriveActions : BaseInvocable
         
         do
         {
-            var request = new MicrosoftSharePointRequest(endpoint, Method.Get, _authenticationCredentialsProviders);
-            var result = await _client.ExecuteWithHandling<ListWrapper<FileMetadataDto>>(request);
+            var request = new MicrosoftSharePointRequest(endpoint, Method.Get);
+            var result = await Client.ExecuteWithErrorHandling<ListWrapper<FileMetadataDto>>(request);
             var files = result.Value.Where(item => item.MimeType != null);
             filesInFolder.AddRange(files);
             endpoint = result.ODataNextLink == null ? null : "/drive" + result.ODataNextLink?.Split("drive")[^1];
@@ -200,23 +192,22 @@ public class DriveActions : BaseInvocable
         [ActionParameter] [Display("Folder name")] string folderName)
     {
         var request = new MicrosoftSharePointRequest($"/drive/items/{folderIdentifier.ParentFolderId}/children", 
-            Method.Post, _authenticationCredentialsProviders);
+            Method.Post);
         request.AddJsonBody(new
         {
             Name = folderName,
             Folder = new { }
         });
     
-        var folderMetadata = await _client.ExecuteWithHandling<FolderMetadataDto>(request);
+        var folderMetadata = await Client.ExecuteWithErrorHandling<FolderMetadataDto>(request);
         return folderMetadata;
     }
     
     [Action("Delete folder", Description = "Delete a folder.")]
     public async Task DeleteFolderById([ActionParameter] FolderIdentifier folderIdentifier)
     {
-        var request = new MicrosoftSharePointRequest($"/drive/items/{folderIdentifier.FolderId}", Method.Delete, 
-            _authenticationCredentialsProviders); 
-        await _client.ExecuteWithHandling(request);
+        var request = new MicrosoftSharePointRequest($"/drive/items/{folderIdentifier.FolderId}", Method.Delete); 
+        await Client.ExecuteWithErrorHandling(request);
     }
 
     #endregion

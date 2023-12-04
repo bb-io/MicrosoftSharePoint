@@ -1,4 +1,4 @@
-﻿using Apps.MicrosoftSharePoint.Dtos;
+﻿using Apps.MicrosoftSharePoint.Models.Dtos;
 using Newtonsoft.Json;
 
 namespace Apps.MicrosoftSharePoint.Converters;

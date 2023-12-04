@@ -1,4 +1,5 @@
-﻿using Blackbird.Applications.Sdk.Common.Authentication;
+﻿using Apps.MicrosoftSharePoint.Api;
+using Blackbird.Applications.Sdk.Common.Authentication;
 using Blackbird.Applications.Sdk.Common.Connections;
 using RestSharp;
 
@@ -20,11 +21,11 @@ public class ConnectionValidator : IConnectionValidator
             };
             
         var client = new MicrosoftSharePointClient(authenticationCredentialsProviders);
-        var request = new MicrosoftSharePointRequest("", Method.Get, authenticationCredentialsProviders);
+        var request = new MicrosoftSharePointRequest("", Method.Get);
         
         try
         {
-            await client.ExecuteWithHandling(request);
+            await client.ExecuteWithErrorHandling(request);
             return new ConnectionValidationResponse
             {
                 IsValid = true,

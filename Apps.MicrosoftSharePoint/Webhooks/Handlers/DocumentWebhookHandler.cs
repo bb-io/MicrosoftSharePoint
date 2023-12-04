@@ -2,11 +2,11 @@
 
 namespace Apps.MicrosoftSharePoint.Webhooks.Handlers;
 
-public class DriveWebhookHandler : BaseWebhookHandler
+public class DocumentWebhookHandler : BaseWebhookHandler
 {
     const string SubscriptionEvent = "updated"; // the only event type supported for drive items
     
-    public DriveWebhookHandler(InvocationContext invocationContext) 
+    public DocumentWebhookHandler(InvocationContext invocationContext) 
         : base(invocationContext, SubscriptionEvent) { }
 
     protected override string GetResource()

@@ -1,6 +1,6 @@
 ﻿using Blackbird.Applications.Sdk.Common;
 
-namespace Apps.MicrosoftSharePoint.Dtos;
+namespace Apps.MicrosoftSharePoint.Models.Dtos.Documents;
 
 public class ParentReferenceDto
 {

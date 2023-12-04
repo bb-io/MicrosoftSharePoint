@@ -1,4 +1,4 @@
-﻿using Apps.MicrosoftSharePoint.Dtos;
+﻿using Apps.MicrosoftSharePoint.Models.Dtos;
 using Blackbird.Applications.Sdk.Common.Authentication;
 using Blackbird.Applications.Sdk.Common.Connections;
 using Apps.MicrosoftSharePoint.Extensions;
@@ -10,7 +10,7 @@ public class ConnectionDefinition : IConnectionDefinition
 {
     public IEnumerable<ConnectionPropertyGroup> ConnectionPropertyGroups => new List<ConnectionPropertyGroup>
     {
-        new ConnectionPropertyGroup
+        new()
         {
             Name = "OAuth",
             AuthenticationType = ConnectionAuthenticationType.OAuth2,
