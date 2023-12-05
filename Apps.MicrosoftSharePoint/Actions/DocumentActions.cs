@@ -2,11 +2,11 @@
 using Apps.MicrosoftSharePoint.Api;
 using Apps.MicrosoftSharePoint.Models.Dtos;
 using Apps.MicrosoftSharePoint.Models.Identifiers;
-using Apps.MicrosoftSharePoint.Models.Responses;
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Actions;
 using Blackbird.Applications.Sdk.Common.Invocation;
 using Apps.MicrosoftSharePoint.Extensions;
+using Apps.MicrosoftSharePoint.Models;
 using Apps.MicrosoftSharePoint.Models.Dtos.Documents;
 using Apps.MicrosoftSharePoint.Models.Requests.Documents;
 using Apps.MicrosoftSharePoint.Models.Responses.Documents;
@@ -56,7 +56,7 @@ public class DocumentActions : MicrosoftSharePointInvocable
     }
     
     [Action("Download file", Description = "Download a file from site documents.")]
-    public async Task<FileResponse> DownloadFileById([ActionParameter] FileIdentifier fileIdentifier)
+    public async Task<FileWrapper> DownloadFileById([ActionParameter] FileIdentifier fileIdentifier)
     {
         var request = new MicrosoftSharePointRequest($"/drive/items/{fileIdentifier.FileId}/content", Method.Get);
         var response = await Client.ExecuteWithErrorHandling(request);
@@ -68,7 +68,7 @@ public class DocumentActions : MicrosoftSharePointInvocable
             ? MediaTypeNames.Text.RichText
             : response.ContentType;
         
-        return new FileResponse
+        return new FileWrapper
         {
             File = new File(fileBytes)
             {

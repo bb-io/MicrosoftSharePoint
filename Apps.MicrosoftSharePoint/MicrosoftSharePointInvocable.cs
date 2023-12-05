@@ -8,8 +8,9 @@ public class MicrosoftSharePointInvocable : BaseInvocable
 {
     protected readonly MicrosoftSharePointClient Client;
 
-    protected MicrosoftSharePointInvocable(InvocationContext invocationContext) : base(invocationContext)
+    protected MicrosoftSharePointInvocable(InvocationContext invocationContext, bool isBetaApi = false) 
+        : base(invocationContext)
     {
-        Client = new MicrosoftSharePointClient(invocationContext.AuthenticationCredentialsProviders);
+        Client = new MicrosoftSharePointClient(invocationContext.AuthenticationCredentialsProviders, isBetaApi);
     }
 }

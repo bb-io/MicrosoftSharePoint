@@ -14,19 +14,25 @@ public class MicrosoftSharePointClient : BlackBirdRestClient
             MissingMemberHandling = MissingMemberHandling.Ignore, DateTimeZoneHandling = DateTimeZoneHandling.Local
         };
 
-    public MicrosoftSharePointClient(IEnumerable<AuthenticationCredentialsProvider> authenticationCredentialsProviders)
+    public MicrosoftSharePointClient(IEnumerable<AuthenticationCredentialsProvider> authenticationCredentialsProviders,
+        bool isBeta = false)
         : base(new RestClientOptions
         {
-            ThrowOnAnyError = false, BaseUrl = GetBaseUrl(authenticationCredentialsProviders)
+            ThrowOnAnyError = false, BaseUrl = GetBaseUrl(authenticationCredentialsProviders, isBeta)
         })
     {
         this.AddDefaultHeader("Authorization",
             authenticationCredentialsProviders.First(p => p.KeyName == "Authorization").Value);
     }
 
-    private static Uri GetBaseUrl(IEnumerable<AuthenticationCredentialsProvider> authenticationCredentialsProviders)
+    private static Uri GetBaseUrl(IEnumerable<AuthenticationCredentialsProvider> authenticationCredentialsProviders, 
+        bool isBeta)
     {
         var siteId = authenticationCredentialsProviders.First(p => p.KeyName == "SiteId").Value;
+        
+        if (isBeta)
+            return new($"https://graph.microsoft.com/beta/sites/{siteId}");
+        
         return new($"https://graph.microsoft.com/v1.0/sites/{siteId}");
     }
     
