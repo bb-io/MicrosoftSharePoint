@@ -203,7 +203,7 @@ public class DriveActions : BaseInvocable
             Method.Post, _authenticationCredentialsProviders);
         request.AddJsonBody(new
         {
-            Name = folderName,
+            Name = folderName.Trim(),
             Folder = new { }
         });
     
