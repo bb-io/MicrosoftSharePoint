@@ -10,12 +10,12 @@ namespace Apps.MicrosoftSharePoint.DataSourceHandlers;
 
 public class PageDataHandler : BaseInvocable, IAsyncDataSourceHandler
 {
-    private readonly PagesRequest _pagesRequest;
+    private readonly PageRequest _pageRequest;
 
-    public PageDataHandler(InvocationContext invocationContext, [ActionParameter] PagesRequest pagesRequest) : base(
+    public PageDataHandler(InvocationContext invocationContext, [ActionParameter] PageRequest pageRequest) : base(
         invocationContext)
     {
-        _pagesRequest = pagesRequest;
+        _pageRequest = pageRequest;
     }
 
     public async Task<Dictionary<string, string>> GetDataAsync(DataSourceContext context,
@@ -33,9 +33,9 @@ public class PageDataHandler : BaseInvocable, IAsyncDataSourceHandler
             .OrderByDescending(x => x.LastModifiedDateTime);
 
         var pagesCount = 50;
-        if (!string.IsNullOrWhiteSpace(_pagesRequest.Locale))
+        if (!string.IsNullOrWhiteSpace(_pageRequest.Locale))
             return pages
-                .Where(x => x.WebUrl.Split("/").SkipLast(1).Last() == _pagesRequest.Locale)
+                .Where(x => x.WebUrl.Split("/").SkipLast(1).Last() == _pageRequest.Locale)
                 .Take(pagesCount)
                 .ToDictionary(x => x.Id, x => x.Name);
 

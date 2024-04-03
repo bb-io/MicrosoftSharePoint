@@ -31,9 +31,9 @@ public class PageActions : BaseInvocable
     }
 
     [Action("Get page as HTML", Description = "Get content of a specific page in HTML format")]
-    public async Task<FileResponse> GetPageContent([ActionParameter] PagesRequest pagesRequest)
+    public async Task<FileResponse> GetPageContent([ActionParameter] PageRequest pageRequest)
     {
-        var pageContent = await GetPageJObject(pagesRequest.PageId);
+        var pageContent = await GetPageJObject(pageRequest.PageId);
         var html = SharePointHtmlConverter.ToHtml(pageContent);
 
         return new()
@@ -44,7 +44,7 @@ public class PageActions : BaseInvocable
     }
 
     [Action("Update page from HTML", Description = "Update content of a specific page from HTML file")]
-    public async Task UpdatePageContent([ActionParameter] PagesRequest pagesRequest, [ActionParameter] FileRequest file)
+    public async Task UpdatePageContent([ActionParameter] PageRequest pageRequest, [ActionParameter] FileRequest file)
     {
         var fileStream = await _fileManagementClient.DownloadAsync(file.File);
         var (title, content) = SharePointHtmlConverter.ToJson(fileStream);
@@ -55,7 +55,7 @@ public class PageActions : BaseInvocable
             .ToList()
             .ForEach(x => x.Remove());
 
-        var request = new MicrosoftSharePointRequest($"pages/{pagesRequest.PageId}/microsoft.graph.sitePage",
+        var request = new MicrosoftSharePointRequest($"pages/{pageRequest.PageId}/microsoft.graph.sitePage",
                 Method.Patch, _authenticationCredentialsProviders)
             .WithJsonBody(new
             {
