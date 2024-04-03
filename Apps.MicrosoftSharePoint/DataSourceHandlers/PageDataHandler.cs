@@ -40,7 +40,6 @@ public class PageDataHandler : BaseInvocable, IAsyncDataSourceHandler
                 .ToDictionary(x => x.Id, x => x.Name);
         
         return pages
-            .Where(x => x.WebUrl.Split("/").SkipLast(1).Last() == _pagesRequest.Locale)
             .Take(pagesCount)
             .ToDictionary(x => x.Id, x => GetPagePath(x.WebUrl));
     }
