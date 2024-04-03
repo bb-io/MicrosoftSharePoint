@@ -37,8 +37,7 @@ public class PageDataHandler : BaseInvocable, IAsyncDataSourceHandler
             return pages
                 .Where(x => x.WebUrl.Split("/").SkipLast(1).Last() == _pagesRequest.Locale)
                 .Take(pagesCount)
-                .ToDictionary(x => x.Id,
-                    x => x.Name.StartsWith("SitePages/") ? x.Name.Substring("SitePages/".Length) : x.Name);
+                .ToDictionary(x => x.Id, x => x.Name);
 
         return pages
             .Take(pagesCount)
@@ -48,6 +47,8 @@ public class PageDataHandler : BaseInvocable, IAsyncDataSourceHandler
     private string GetPagePath(string url)
     {
         var segments = url.Split("/");
-        return string.Join("/", segments[^2].Trim('/'), segments[^1]);
+        var name = string.Join("/", segments[^2].Trim('/'), segments[^1]);
+
+        return name.StartsWith("SitePages/") ? name.Substring("SitePages/".Length) : name;
     }
 }
