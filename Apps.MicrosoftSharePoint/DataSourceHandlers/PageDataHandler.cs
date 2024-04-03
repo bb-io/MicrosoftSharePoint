@@ -11,7 +11,7 @@ namespace Apps.MicrosoftSharePoint.DataSourceHandlers;
 public class PageDataHandler : BaseInvocable, IAsyncDataSourceHandler
 {
     private readonly PagesRequest _pagesRequest;
-    
+
     public PageDataHandler(InvocationContext invocationContext, [ActionParameter] PagesRequest pagesRequest) : base(
         invocationContext)
     {
@@ -37,8 +37,9 @@ public class PageDataHandler : BaseInvocable, IAsyncDataSourceHandler
             return pages
                 .Where(x => x.WebUrl.Split("/").SkipLast(1).Last() == _pagesRequest.Locale)
                 .Take(pagesCount)
-                .ToDictionary(x => x.Id, x => x.Name);
-        
+                .ToDictionary(x => x.Id,
+                    x => x.Name.StartsWith("SitePages/") ? x.Name.Substring("SitePages/".Length) : x.Name);
+
         return pages
             .Take(pagesCount)
             .ToDictionary(x => x.Id, x => GetPagePath(x.WebUrl));
