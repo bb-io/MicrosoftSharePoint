@@ -16,7 +16,7 @@ public class MicrosoftSharePointClient : RestClient
     private static Uri GetBaseUrl(IEnumerable<AuthenticationCredentialsProvider> authenticationCredentialsProviders)
     {
         var siteId = authenticationCredentialsProviders.First(p => p.KeyName == "SiteId").Value;
-        return new($"https://graph.microsoft.com/v1.0/sites/{siteId}");
+        return new($"https://graph.microsoft.com/beta/sites/{siteId}");
     }
 
     public async Task<T> ExecuteWithHandling<T>(RestRequest request)
