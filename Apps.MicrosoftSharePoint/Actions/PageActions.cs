@@ -39,7 +39,7 @@ public class PageActions : BaseInvocable
         return new()
         {
             File = await _fileManagementClient.UploadAsync(new MemoryStream(html), MediaTypeNames.Text.Html,
-                $"{pageContent.Title}.html")
+                $"{Path.GetFileNameWithoutExtension(pageContent.Name)}.html")
         };
     }
 
