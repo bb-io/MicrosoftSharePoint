@@ -1,3 +1,4 @@
+using System.Web;
 using Apps.MicrosoftSharePoint.Models.Entities;
 using Apps.MicrosoftSharePoint.Models.Requests.Pages;
 using Apps.MicrosoftSharePoint.Models.Responses;
@@ -49,6 +50,7 @@ public class PageDataHandler : BaseInvocable, IAsyncDataSourceHandler
         var segments = url.Split("/");
         var name = string.Join("/", segments[^2].Trim('/'), segments[^1]);
 
-        return name.StartsWith("SitePages/") ? name.Substring("SitePages/".Length) : name;
+        var result = name.StartsWith("SitePages/") ? name.Substring("SitePages/".Length) : name;
+        return HttpUtility.UrlDecode(result);
     }
 }

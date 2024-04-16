@@ -13,7 +13,7 @@ public static class SharePointHtmlConverter
 
     public static byte[] ToHtml(PageContentResponse pageContent)
     {
-        var (doc, body) = PrepareEmptyHtmlDocument(pageContent.TitleArea["title"]!.ToString());
+        var (doc, body) = PrepareEmptyHtmlDocument(pageContent.TitleArea?["title"]!.ToString() ?? pageContent.Title);
 
         body.SetAttributeValue(ConversionConstants.OriginalAttr, pageContent.CanvasLayout.ToString());
 
