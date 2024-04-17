@@ -12,7 +12,7 @@ public class MicrosoftSharePointApplication : BaseInvocable, IApplication, ICate
 
     public IEnumerable<ApplicationCategory> Categories
     {
-        get => [ApplicationCategory.FileManagementAndStorage, ApplicationCategory.Microsoft365Apps];
+        get => [ApplicationCategory.FileManagementAndStorage, ApplicationCategory.Microsoft365Apps, ApplicationCategory.Cms];
         set { }
     }
     
