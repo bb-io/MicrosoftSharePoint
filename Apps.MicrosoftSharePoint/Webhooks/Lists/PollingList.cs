@@ -1,6 +1,7 @@
 ﻿using Apps.MicrosoftSharePoint.Models.Entities;
 using Apps.MicrosoftSharePoint.Models.Responses;
 using Apps.MicrosoftSharePoint.Webhooks.Memory;
+using Apps.MicrosoftSharePoint.Webhooks.Payload;
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Invocation;
 using Blackbird.Applications.Sdk.Common.Polling;
@@ -16,7 +17,7 @@ namespace Apps.MicrosoftSharePoint.Webhooks.Lists
         }
 
         [PollingEvent("On pages created or updated", "On pages created or updated")]
-        public async Task<PollingEventResponse<PagesMemory, List<PageEntity>>> OnPagesCreatedOrUpdated(
+        public async Task<PollingEventResponse<PagesMemory, PollingPagesUpdatedResponse>> OnPagesCreatedOrUpdated(
             PollingEventRequest<PagesMemory> request)
         {
             var allPages = await ListAllPages();
@@ -41,12 +42,12 @@ namespace Apps.MicrosoftSharePoint.Webhooks.Lists
             {
                 FlyBird = true,
                 Memory = new PagesMemory() { PagesState = newPagesState },
-                Result = allPages.Value.Where(x => changedPagesId.Contains(x.Id)).ToList()
+                Result = new PollingPagesUpdatedResponse() { Pages = allPages.Value.Where(x => changedPagesId.Contains(x.Id)).ToList() }
             };
         }
 
         [PollingEvent("On pages deleted", "On pages deleted")]
-        public async Task<PollingEventResponse<PagesMemory, List<PageEntity>>> OnPagesDeleted(
+        public async Task<PollingEventResponse<PagesMemory, List<string>>> OnPagesDeleted(
             PollingEventRequest<PagesMemory> request)
         {
             var allPages = await ListAllPages();
@@ -70,7 +71,7 @@ namespace Apps.MicrosoftSharePoint.Webhooks.Lists
             {
                 FlyBird = true,
                 Memory = new PagesMemory() { PagesState = newPagesState },
-                Result = allPages.Value.Where(x => deletedPagesIds.Contains(x.Id)).ToList()
+                Result = deletedPagesIds
             };
         }
 
