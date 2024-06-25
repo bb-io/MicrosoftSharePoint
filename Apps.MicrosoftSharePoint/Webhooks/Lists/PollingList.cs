@@ -60,18 +60,19 @@ namespace Apps.MicrosoftSharePoint.Webhooks.Lists
                     Memory = new PagesMemory() { PagesState = newPagesState }
                 };
             }
-            var deletedPagesIds = request.Memory.PagesState.Except(newPagesState).ToList();
-            if (deletedPagesIds.Count == 0)
+            var deletedPages = request.Memory.PagesState.Except(newPagesState).ToList();
+            if (deletedPages.Count == 0)
                 return new()
                 {
                     FlyBird = false,
                     Memory = new PagesMemory() { PagesState = newPagesState }
                 };
+            var deletedPagesId = deletedPages.Select(x => x.Split('|').First()).ToList();
             return new()
             {
                 FlyBird = true,
                 Memory = new PagesMemory() { PagesState = newPagesState },
-                Result = deletedPagesIds
+                Result = deletedPagesId
             };
         }
 
