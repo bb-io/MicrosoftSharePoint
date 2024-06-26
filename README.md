@@ -59,13 +59,18 @@ Note: if you have just created a site, you should wait a couple of minutes befor
 
 - **On files updated or created** is triggered when files are updated or created.
 - **On folders updated or created** is triggered when folders are updated or created.
+- **On pages created or updated** this polling event is triggered when pages are updated or created.
+- **On pages deleted** this polling event is triggered when pages are deleted.
 
 ## Example
-
+Example 1
 ![Example](image/README/example.png)
 
 Here, whenever PDF files are uploaded to SharePoint Documents, each file is downloaded, translated with Language Weaver and placed in the appropriate directory based on the translation quality assessment.
 
+Example 2 <br>
+![Example](image/README/example2.png)<br>
+In this example, the workflow starts with the **On pages created or updated**. Then, the workflow uses the **Get page as HTML** action to get html content of updated/created page. In the next step we translate this content via DeepL and then send the translated page to Slack channel.
 ## Missing features
 
 In the future we can add actions for lists. Let us know if you're interested!
