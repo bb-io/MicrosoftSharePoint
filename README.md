@@ -68,8 +68,8 @@ Example 1
 
 Here, whenever PDF files are uploaded to SharePoint Documents, each file is downloaded, translated with Language Weaver and placed in the appropriate directory based on the translation quality assessment.
 
-Example 2
-![Example](image/README/example2.png)
+Example 2 <br>
+![Example](image/README/example2.png)<br>
 In this example, the workflow starts with the **On pages created or updated**. Then, the workflow uses the **Get page as HTML** action to get html content of updated/created page. In the next step we translate this content via DeepL and then send the translated page to Slack channel.
 ## Missing features
 
