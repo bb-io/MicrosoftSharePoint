@@ -6,7 +6,7 @@ namespace Apps.MicrosoftSharePoint.Models.Identifiers;
 
 public class FileIdentifier
 {
-    [Display("File")] 
+    [Display("File ID")] 
     [DataSource(typeof(FileDataSourceHandler))]
     public string FileId { get; set; }
 }
