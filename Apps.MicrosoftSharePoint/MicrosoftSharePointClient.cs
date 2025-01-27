@@ -2,6 +2,8 @@
 using Blackbird.Applications.Sdk.Common.Authentication;
 using Apps.MicrosoftSharePoint.Extensions;
 using RestSharp;
+using Blackbird.Applications.Sdk.Common.Exceptions;
+using System.Globalization;
 
 namespace Apps.MicrosoftSharePoint;
 
@@ -38,6 +40,11 @@ public class MicrosoftSharePointClient : RestClient
     private Exception ConfigureErrorException(string responseContent)
     {
         var error = responseContent.DeserializeObject<ErrorDto>();
-        return new($"{error.Error.Code}: {error.Error.Message}");
+
+        if (error.Error.Code?.Equals("InternalServerError", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            return new PluginApplicationException("An internal server error occurred. Please implement a retry policy and try again.");
+        }
+        return new PluginApplicationException($"Error: {error.Error.Code} - {error.Error.Message}");
     }
 }
