@@ -11,6 +11,7 @@ using Apps.MicrosoftSharePoint.Extensions;
 using Blackbird.Applications.SDK.Extensions.FileManagement.Interfaces;
 using Blackbird.Applications.Sdk.Utils.Extensions.Files;
 using RestSharp;
+using Blackbird.Applications.Sdk.Common.Exceptions;
 
 namespace Apps.MicrosoftSharePoint.Actions;
 
@@ -83,6 +84,10 @@ public class DriveActions : BaseInvocable
     public async Task<FileMetadataDto> UploadFileInFolderById([ActionParameter] ParentFolderIdentifier folderIdentifier,
         [ActionParameter] UploadFileRequest input)
     {
+        if (folderIdentifier.ParentFolderId.StartsWith("/"))
+        {
+            throw new PluginApplicationException("Incorrect parent folder ID. Please provide a valid folder ID, such as '01C7WXPSBPDJQQ2E2CTBFI5XXXXXXXXXX'.");
+        }
         const int fourMegabytesInBytes = 4194304;
         var file = await _fileManagementClient.DownloadAsync(input.File);
         var fileBytes = await file.GetByteData();
@@ -139,7 +144,7 @@ public class DriveActions : BaseInvocable
                 if (!uploadResponse.IsSuccessful)
                 {
                     var error = responseContent.DeserializeObject<ErrorDto>();
-                    throw new Exception($"{error.Error.Code}: {error.Error.Message}");
+                    throw new PluginApplicationException($"{error.Error.Code}: {error.Error.Message}");
                 }
                 
                 resumableUploadResult = responseContent.DeserializeObject<ResumableUploadDto>();
