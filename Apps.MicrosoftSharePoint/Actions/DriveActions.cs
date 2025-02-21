@@ -125,8 +125,8 @@ public class DriveActions : BaseInvocable
             var uploadUrl = new Uri(resumableUploadResult.UploadUrl);
             var baseUrl = uploadUrl.GetLeftPart(UriPartial.Authority);
             var endpoint = uploadUrl.PathAndQuery;
-            var uploadClient = new RestClient(new RestClientOptions { BaseUrl = new(baseUrl) });
-            
+            var uploadClient = new MicrosoftSharePointUploadClient(baseUrl);
+
             do
             {
                 var startByte = int.Parse(resumableUploadResult.NextExpectedRanges.First().Split("-")[0]);
@@ -138,14 +138,8 @@ public class DriveActions : BaseInvocable
                 uploadRequest.AddHeader("Content-Length", bufferSize);
                 uploadRequest.AddHeader("Content-Range", $"bytes {startByte}-{startByte + bufferSize - 1}/{fileSize}");
                 
-                var uploadResponse = await uploadClient.ExecuteAsync(uploadRequest);
+                var uploadResponse = await uploadClient.ExecuteWithHandling(uploadRequest);
                 var responseContent = uploadResponse.Content;
-    
-                if (!uploadResponse.IsSuccessful)
-                {
-                    var error = responseContent.DeserializeObject<ErrorDto>();
-                    throw new PluginApplicationException($"{error.Error.Code}: {error.Error.Message}");
-                }
                 
                 resumableUploadResult = responseContent.DeserializeObject<ResumableUploadDto>();
     
