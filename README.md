@@ -73,6 +73,11 @@ Here, whenever PDF files are uploaded to SharePoint Documents, each file is down
 Example 2
 ![Example](image/README/example2.png)
 In this example, the workflow starts with the **On pages created or updated**. Then, the workflow uses the **Get page as HTML** action to get html content of updated/created page. In the next step we translate this content via DeepL and then send the translated page to Slack channel.
+
+## Eggs
+
+Check downloadable workflow prototypes featuring this app that you can import to your Nests [here](https://docs.blackbird.io/eggs/storage-to-mt/). 
+
 ## Missing features
 
 In the future we can add actions for lists. Let us know if you're interested!
