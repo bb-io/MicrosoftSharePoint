@@ -6,7 +6,7 @@ using Blackbird.Applications.Sdk.Common.Metadata;
 
 namespace Apps.MicrosoftSharePoint;
 
-public class MicrosoftSharePointApplication : BaseInvocable, IApplication, ICategoryProvider
+public class SharePointApplication : BaseInvocable, IApplication, ICategoryProvider
 {
     private readonly Dictionary<Type, object> _typesInstances;
 
@@ -16,7 +16,7 @@ public class MicrosoftSharePointApplication : BaseInvocable, IApplication, ICate
         set { }
     }
     
-    public MicrosoftSharePointApplication(InvocationContext invocationContext) : base(invocationContext)
+    public SharePointApplication(InvocationContext invocationContext) : base(invocationContext)
     {
         _typesInstances = CreateTypesInstances();
     }

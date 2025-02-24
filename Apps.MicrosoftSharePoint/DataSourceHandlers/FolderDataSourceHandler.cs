@@ -15,7 +15,7 @@ public class FolderDataSourceHandler : BaseInvocable, IAsyncDataSourceHandler
     public async Task<Dictionary<string, string>> GetDataAsync(DataSourceContext context,
         CancellationToken cancellationToken)
     {
-        var client = new MicrosoftSharePointClient(InvocationContext.AuthenticationCredentialsProviders);
+        var client = new SharePointBetaClient(InvocationContext.AuthenticationCredentialsProviders);
         var endpoint = "/drive/list/items?$select=id&$expand=driveItem($select=id,name,parentReference)&" +
                        "$filter=fields/ContentType eq 'Folder'&$top=20";
         var foldersDictionary = new Dictionary<string, string>();
@@ -23,7 +23,7 @@ public class FolderDataSourceHandler : BaseInvocable, IAsyncDataSourceHandler
 
         do
         {
-            var request = new MicrosoftSharePointRequest(endpoint, Method.Get, 
+            var request = new SharePointRequest(endpoint, Method.Get, 
                 InvocationContext.AuthenticationCredentialsProviders);
             request.AddHeader("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly");
             var folders = await client.ExecuteWithHandling<ListWrapper<DriveItemWrapper<FolderMetadataDto>>>(request);
@@ -57,7 +57,7 @@ public class FolderDataSourceHandler : BaseInvocable, IAsyncDataSourceHandler
         if (string.IsNullOrWhiteSpace(context.SearchString) 
             || rootName.Contains(context.SearchString, StringComparison.OrdinalIgnoreCase))
         {
-            var request = new MicrosoftSharePointRequest("/drive/root", Method.Get,
+            var request = new SharePointRequest("/drive/root", Method.Get,
                 InvocationContext.AuthenticationCredentialsProviders);
             var rootFolder = await client.ExecuteWithHandling<FolderMetadataDto>(request);
             foldersDictionary.Add(rootFolder.Id, rootName);

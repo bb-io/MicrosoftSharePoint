@@ -14,7 +14,6 @@ public class ConnectionDefinition : IConnectionDefinition
         {
             Name = "OAuth",
             AuthenticationType = ConnectionAuthenticationType.OAuth2,
-            ConnectionUsage = ConnectionUsage.Actions,
             ConnectionProperties = new List<ConnectionProperty>
             {
                 new("Site name")
@@ -27,7 +26,6 @@ public class ConnectionDefinition : IConnectionDefinition
     {
         var token = values.First(v => v.Key == "access_token").Value;
         yield return new AuthenticationCredentialsProvider(
-            AuthenticationCredentialsRequestLocation.None,
             "Authorization",
             $"Bearer {token}"
         );
@@ -36,7 +34,6 @@ public class ConnectionDefinition : IConnectionDefinition
         var siteId = GetSiteId(token, siteDisplayName);
         
         yield return new AuthenticationCredentialsProvider(
-            AuthenticationCredentialsRequestLocation.None,
             "SiteId",
             siteId
         );
@@ -44,7 +41,7 @@ public class ConnectionDefinition : IConnectionDefinition
 
     private string? GetSiteId(string accessToken, string siteDisplayName)
     {
-        var client = new RestClient(new RestClientOptions("https://graph.microsoft.com/v1.0"));
+        var client = new SharePointClient();
         var endpoint = "/sites?search=*";
         string siteId;
 

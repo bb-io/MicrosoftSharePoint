@@ -289,3 +289,4 @@ __pycache__/
 *.xsd.cs
 
 /Apps.MicrosoftSharePoint/ApplicationConstants.cs
+/Tests.MicrosoftSharePoint/appsettings.json

@@ -1,0 +1,6 @@
+{
+    "ConnectionDefinition": {
+        "SiteId": "[YOUR_SITE_ID]"
+    },
+    "TestFolder": "TestFiles"
+}

@@ -7,9 +7,9 @@ using System.Globalization;
 
 namespace Apps.MicrosoftSharePoint;
 
-public class MicrosoftSharePointClient : RestClient
+public class SharePointBetaClient : RestClient
 {
-    public MicrosoftSharePointClient(IEnumerable<AuthenticationCredentialsProvider> authenticationCredentialsProviders) 
+    public SharePointBetaClient(IEnumerable<AuthenticationCredentialsProvider> authenticationCredentialsProviders) 
         : base(new RestClientOptions
         {
             ThrowOnAnyError = false, BaseUrl = GetBaseUrl(authenticationCredentialsProviders)

@@ -22,10 +22,10 @@ public class PageDataHandler : BaseInvocable, IAsyncDataSourceHandler
     public async Task<Dictionary<string, string>> GetDataAsync(DataSourceContext context,
         CancellationToken cancellationToken)
     {
-        var client = new MicrosoftSharePointClient(InvocationContext.AuthenticationCredentialsProviders);
+        var client = new SharePointBetaClient(InvocationContext.AuthenticationCredentialsProviders);
 
         var request =
-            new MicrosoftSharePointRequest("pages", Method.Get, InvocationContext.AuthenticationCredentialsProviders);
+            new SharePointRequest("pages", Method.Get, InvocationContext.AuthenticationCredentialsProviders);
         var response = await client.ExecuteWithHandling<ListResponse<PageEntity>>(request);
 
         var pages = response.Value

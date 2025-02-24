@@ -29,14 +29,14 @@ public abstract class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, 
     public async Task SubscribeAsync(IEnumerable<AuthenticationCredentialsProvider> authenticationCredentialsProviders,
         Dictionary<string, string> values)
     {
-        var sharePointClient = new RestClient(new RestClientOptions("https://graph.microsoft.com/v1.0"));
+        var sharePointClient = new SharePointClient();
         var targetSubscription = await GetTargetSubscription(authenticationCredentialsProviders, sharePointClient);
         var bridgeService = new BridgeService(InvocationContext.UriInfo.BridgeServiceUrl.ToString().TrimEnd('/'));
         string subscriptionId;
         
         if (targetSubscription is null)
         {
-            var createSubscriptionRequest = new MicrosoftSharePointRequest("/subscriptions", Method.Post,
+            var createSubscriptionRequest = new SharePointRequest("/subscriptions", Method.Post,
                 authenticationCredentialsProviders);
             createSubscriptionRequest.AddJsonBody(new
             {
@@ -51,7 +51,7 @@ public abstract class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, 
             var subscription = response.Content.DeserializeObject<SubscriptionDto>();
             subscriptionId = subscription.Id;
             
-            var deltaRequest = new MicrosoftSharePointRequest($"{Resource}/delta", Method.Get, 
+            var deltaRequest = new SharePointRequest($"{Resource}/delta", Method.Get, 
                 authenticationCredentialsProviders); 
             response = await sharePointClient.ExecuteAsync(deltaRequest);
             var result = response.Content.DeserializeObject<ListWrapper<object>>();
@@ -59,7 +59,7 @@ public abstract class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, 
             while (result.ODataNextLink != null)
             {
                 var endpoint = result.ODataNextLink?.Split("v1.0")[1];
-                deltaRequest = new MicrosoftSharePointRequest(endpoint, Method.Get, authenticationCredentialsProviders);
+                deltaRequest = new SharePointRequest(endpoint, Method.Get, authenticationCredentialsProviders);
                 response = await sharePointClient.ExecuteAsync(deltaRequest);
                 result = response.Content.DeserializeObject<ListWrapper<object>>();
             }
@@ -76,7 +76,7 @@ public abstract class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, 
     public async Task UnsubscribeAsync(IEnumerable<AuthenticationCredentialsProvider> authenticationCredentialsProviders,
         Dictionary<string, string> values)
     {
-        var sharePointClient = new RestClient(new RestClientOptions("https://graph.microsoft.com/v1.0"));
+        var sharePointClient = new SharePointClient();
         var targetSubscription = await GetTargetSubscription(authenticationCredentialsProviders, sharePointClient);
         var subscriptionId = targetSubscription.Id;
         
@@ -86,7 +86,7 @@ public abstract class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, 
         if (webhooksLeft == 0)
         {
             await bridgeService.DeleteValue(subscriptionId);
-            var deleteSubscriptionRequest = new MicrosoftSharePointRequest($"/subscriptions/{subscriptionId}", 
+            var deleteSubscriptionRequest = new SharePointRequest($"/subscriptions/{subscriptionId}", 
                 Method.Delete, authenticationCredentialsProviders);
             await sharePointClient.ExecuteAsync(deleteSubscriptionRequest);
         }
@@ -96,9 +96,9 @@ public abstract class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, 
     public async Task RenewSubscription(IEnumerable<AuthenticationCredentialsProvider> authenticationCredentialsProviders,
         Dictionary<string, string> values)
     {
-        var sharePointClient = new RestClient(new RestClientOptions("https://graph.microsoft.com/v1.0"));
+        var sharePointClient = new SharePointClient();
         var targetSubscription = await GetTargetSubscription(authenticationCredentialsProviders, sharePointClient);
-        var updateSubscriptionRequest = new MicrosoftSharePointRequest($"/subscriptions/{targetSubscription.Id}", 
+        var updateSubscriptionRequest = new SharePointRequest($"/subscriptions/{targetSubscription.Id}", 
             Method.Patch, authenticationCredentialsProviders);
         updateSubscriptionRequest.AddJsonBody(new
         {
@@ -111,7 +111,7 @@ public abstract class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, 
         IEnumerable<AuthenticationCredentialsProvider> authenticationCredentialsProviders, 
         RestClient sharePointClient)
     {
-        var subscriptionsRequest = new MicrosoftSharePointRequest("/subscriptions", Method.Get, 
+        var subscriptionsRequest = new SharePointRequest("/subscriptions", Method.Get, 
             authenticationCredentialsProviders);
         var response = await sharePointClient.ExecuteAsync(subscriptionsRequest);
         var subscriptions = response.Content.DeserializeObject<SubscriptionWrapper>().Value;
