@@ -29,7 +29,7 @@ public abstract class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, 
     public async Task SubscribeAsync(IEnumerable<AuthenticationCredentialsProvider> authenticationCredentialsProviders,
         Dictionary<string, string> values)
     {
-        var sharePointClient = new MicrosoftSharePointRestClient();
+        var sharePointClient = new SharePointClient();
         var targetSubscription = await GetTargetSubscription(authenticationCredentialsProviders, sharePointClient);
         var bridgeService = new BridgeService(InvocationContext.UriInfo.BridgeServiceUrl.ToString().TrimEnd('/'));
         string subscriptionId;
@@ -76,7 +76,7 @@ public abstract class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, 
     public async Task UnsubscribeAsync(IEnumerable<AuthenticationCredentialsProvider> authenticationCredentialsProviders,
         Dictionary<string, string> values)
     {
-        var sharePointClient = new MicrosoftSharePointRestClient();
+        var sharePointClient = new SharePointClient();
         var targetSubscription = await GetTargetSubscription(authenticationCredentialsProviders, sharePointClient);
         var subscriptionId = targetSubscription.Id;
         
@@ -96,7 +96,7 @@ public abstract class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, 
     public async Task RenewSubscription(IEnumerable<AuthenticationCredentialsProvider> authenticationCredentialsProviders,
         Dictionary<string, string> values)
     {
-        var sharePointClient = new MicrosoftSharePointRestClient();
+        var sharePointClient = new SharePointClient();
         var targetSubscription = await GetTargetSubscription(authenticationCredentialsProviders, sharePointClient);
         var updateSubscriptionRequest = new SharePointRequest($"/subscriptions/{targetSubscription.Id}", 
             Method.Patch, authenticationCredentialsProviders);

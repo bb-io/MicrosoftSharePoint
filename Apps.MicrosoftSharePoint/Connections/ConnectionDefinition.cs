@@ -41,7 +41,7 @@ public class ConnectionDefinition : IConnectionDefinition
 
     private string? GetSiteId(string accessToken, string siteDisplayName)
     {
-        var client = new MicrosoftSharePointRestClient();
+        var client = new SharePointClient();
         var endpoint = "/sites?search=*";
         string siteId;
 
