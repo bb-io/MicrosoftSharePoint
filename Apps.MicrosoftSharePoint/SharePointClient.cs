@@ -5,15 +5,15 @@ using Blackbird.Applications.Sdk.Common.Exceptions;
 
 namespace Apps.MicrosoftSharePoint;
 
-public class MicrosoftSharePointRestClient : RestClient
+public class SharePointClient : RestClient
 {
-    public MicrosoftSharePointRestClient(string baseUrl) 
+    public SharePointClient(string baseUrl) 
         : base(new RestClientOptions
         {
             ThrowOnAnyError = false, BaseUrl = new Uri(baseUrl)
         }) { }
 
-    public MicrosoftSharePointRestClient()
+    public SharePointClient()
         : base(new RestClientOptions
         {
             ThrowOnAnyError = false,

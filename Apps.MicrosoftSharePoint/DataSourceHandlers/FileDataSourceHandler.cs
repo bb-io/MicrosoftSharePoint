@@ -14,7 +14,7 @@ public class FileDataSourceHandler : BaseInvocable, IAsyncDataSourceItemHandler
 
     async Task<IEnumerable<DataSourceItem>> IAsyncDataSourceItemHandler.GetDataAsync(DataSourceContext context, CancellationToken cancellationToken)
     {
-        var client = new MicrosoftSharePointClient(InvocationContext.AuthenticationCredentialsProviders);
+        var client = new SharePointBetaClient(InvocationContext.AuthenticationCredentialsProviders);
         var endpoint = "/drive/list/items?$select=id&$expand=driveItem($select=id,name,parentReference)&" +
                        "$filter=fields/ContentType eq 'Document'&$top=20";
         var filesDictionary = new List<DataSourceItem>();
@@ -22,7 +22,7 @@ public class FileDataSourceHandler : BaseInvocable, IAsyncDataSourceItemHandler
 
         do
         {
-            var request = new MicrosoftSharePointRequest(endpoint, Method.Get,
+            var request = new SharePointRequest(endpoint, Method.Get,
                 InvocationContext.AuthenticationCredentialsProviders);
             request.AddHeader("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly");
             var files = await client.ExecuteWithHandling<ListWrapper<DriveItemWrapper<FileMetadataDto>>>(request);

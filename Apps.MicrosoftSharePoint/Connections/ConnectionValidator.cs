@@ -19,8 +19,8 @@ public class ConnectionValidator : IConnectionValidator
                 Message = "Please provide correct site name."
             };
             
-        var client = new MicrosoftSharePointClient(authenticationCredentialsProviders);
-        var request = new MicrosoftSharePointRequest("", Method.Get, authenticationCredentialsProviders);
+        var client = new SharePointBetaClient(authenticationCredentialsProviders);
+        var request = new SharePointRequest("", Method.Get, authenticationCredentialsProviders);
         
         try
         {

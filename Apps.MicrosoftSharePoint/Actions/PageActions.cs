@@ -19,14 +19,14 @@ namespace Apps.MicrosoftSharePoint.Actions;
 public class PageActions : BaseInvocable
 {
     private readonly IEnumerable<AuthenticationCredentialsProvider> _authenticationCredentialsProviders;
-    private readonly MicrosoftSharePointClient _client;
+    private readonly SharePointBetaClient _client;
     private readonly IFileManagementClient _fileManagementClient;
 
     public PageActions(InvocationContext invocationContext, IFileManagementClient fileManagementClient)
         : base(invocationContext)
     {
         _authenticationCredentialsProviders = invocationContext.AuthenticationCredentialsProviders;
-        _client = new MicrosoftSharePointClient(_authenticationCredentialsProviders);
+        _client = new SharePointBetaClient(_authenticationCredentialsProviders);
         _fileManagementClient = fileManagementClient;
     }
 
@@ -55,7 +55,7 @@ public class PageActions : BaseInvocable
             .ToList()
             .ForEach(x => x.Remove());
 
-        var request = new MicrosoftSharePointRequest($"pages/{pageRequest.PageId}/microsoft.graph.sitePage",
+        var request = new SharePointRequest($"pages/{pageRequest.PageId}/microsoft.graph.sitePage",
                 Method.Patch, _authenticationCredentialsProviders)
             .WithJsonBody(new
             {
@@ -71,7 +71,7 @@ public class PageActions : BaseInvocable
 
     private Task<PageContentResponse> GetPageJObject(string pageId)
     {
-        var request = new MicrosoftSharePointRequest($"pages/{pageId}/microsoft.graph.sitepage?expand=canvasLayout",
+        var request = new SharePointRequest($"pages/{pageId}/microsoft.graph.sitepage?expand=canvasLayout",
             Method.Get, _authenticationCredentialsProviders);
         return _client.ExecuteWithHandling<PageContentResponse>(request);
     }

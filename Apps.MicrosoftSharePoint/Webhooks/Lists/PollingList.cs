@@ -78,9 +78,9 @@ namespace Apps.MicrosoftSharePoint.Webhooks.Lists
 
         private async Task<ListResponse<PageEntity>> ListAllPages()
         {
-            var client = new MicrosoftSharePointClient(InvocationContext.AuthenticationCredentialsProviders);
+            var client = new SharePointBetaClient(InvocationContext.AuthenticationCredentialsProviders);
             var request =
-                new MicrosoftSharePointRequest("pages", Method.Get, InvocationContext.AuthenticationCredentialsProviders);
+                new SharePointRequest("pages", Method.Get, InvocationContext.AuthenticationCredentialsProviders);
             var response = await client.ExecuteWithHandling<ListResponse<PageEntity>>(request);
             return response;
         }

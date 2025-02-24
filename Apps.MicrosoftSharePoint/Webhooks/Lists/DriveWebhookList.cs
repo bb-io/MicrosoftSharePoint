@@ -82,9 +82,9 @@ public class DriveWebhookList : BaseInvocable
 
     private List<T> GetChangedItems<T>(string deltaToken, out string newDeltaToken)
     {
-        var client = new MicrosoftSharePointClient(_authenticationCredentialsProviders);
+        var client = new SharePointBetaClient(_authenticationCredentialsProviders);
         var items = new List<T>();
-        var request = new MicrosoftSharePointRequest($"/drive/root/delta?token={deltaToken}", Method.Get, 
+        var request = new SharePointRequest($"/drive/root/delta?token={deltaToken}", Method.Get, 
             _authenticationCredentialsProviders);
         var result = client.ExecuteWithHandling<ListWrapper<T>>(request).Result;
         items.AddRange(result.Value);
@@ -92,7 +92,7 @@ public class DriveWebhookList : BaseInvocable
         while (result.ODataNextLink != null)
         {
             var endpoint = result.ODataNextLink?.Split("v1.0")[1];
-            request = new MicrosoftSharePointRequest(endpoint, Method.Get, _authenticationCredentialsProviders);
+            request = new SharePointRequest(endpoint, Method.Get, _authenticationCredentialsProviders);
             result = client.ExecuteWithHandling<ListWrapper<T>>(request).Result;
             items.AddRange(result.Value);
         }
@@ -111,7 +111,7 @@ public class DriveWebhookList : BaseInvocable
         var siteId = InvocationContext.AuthenticationCredentialsProviders.First(p => p.KeyName == "SiteId").Value;
         var resource = $"/sites/{siteId}/drive/root";
         var sharePointClient = new MicrosoftSharePointRestClient();
-        var subscriptionsRequest = new MicrosoftSharePointRequest("/subscriptions", Method.Get, _authenticationCredentialsProviders);
+        var subscriptionsRequest = new SharePointRequest("/subscriptions", Method.Get, _authenticationCredentialsProviders);
         var response = await sharePointClient.ExecuteAsync(subscriptionsRequest);
         var subscriptions = response.Content.DeserializeObject<SubscriptionWrapper>().Value;
         var targetSubscription = subscriptions.Single(s => s.Resource == resource
