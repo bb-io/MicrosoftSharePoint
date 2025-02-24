@@ -110,7 +110,7 @@ public class DriveWebhookList : BaseInvocable
         
         var siteId = InvocationContext.AuthenticationCredentialsProviders.First(p => p.KeyName == "SiteId").Value;
         var resource = $"/sites/{siteId}/drive/root";
-        var sharePointClient = new RestClient(new RestClientOptions("https://graph.microsoft.com/v1.0"));
+        var sharePointClient = new MicrosoftSharePointRestClient();
         var subscriptionsRequest = new MicrosoftSharePointRequest("/subscriptions", Method.Get, _authenticationCredentialsProviders);
         var response = await sharePointClient.ExecuteAsync(subscriptionsRequest);
         var subscriptions = response.Content.DeserializeObject<SubscriptionWrapper>().Value;

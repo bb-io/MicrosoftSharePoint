@@ -5,13 +5,21 @@ using Blackbird.Applications.Sdk.Common.Exceptions;
 
 namespace Apps.MicrosoftSharePoint;
 
-public class MicrosoftSharePointUploadClient : RestClient
+public class MicrosoftSharePointRestClient : RestClient
 {
-    public MicrosoftSharePointUploadClient(string baseUrl) 
+    public MicrosoftSharePointRestClient(string baseUrl) 
         : base(new RestClientOptions
         {
             ThrowOnAnyError = false, BaseUrl = new Uri(baseUrl)
         }) { }
+
+    public MicrosoftSharePointRestClient()
+        : base(new RestClientOptions
+        {
+            ThrowOnAnyError = false,
+            BaseUrl = new Uri("https://graph.microsoft.com/v1.0")
+        })
+    { }
 
     public async Task<T> ExecuteWithHandling<T>(RestRequest request)
     {
@@ -37,6 +45,6 @@ public class MicrosoftSharePointUploadClient : RestClient
         {
             return new PluginApplicationException("An internal server error occurred. Please implement a retry policy and try again.");
         }
-        return new PluginApplicationException($"Error: {error.Error.Code} - {error.Error.Message}");
+        return new PluginApplicationException($"{error.Error.Code} - {error.Error.Message}");
     }
 }

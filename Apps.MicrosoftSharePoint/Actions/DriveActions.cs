@@ -125,7 +125,7 @@ public class DriveActions : BaseInvocable
             var uploadUrl = new Uri(resumableUploadResult.UploadUrl);
             var baseUrl = uploadUrl.GetLeftPart(UriPartial.Authority);
             var endpoint = uploadUrl.PathAndQuery;
-            var uploadClient = new MicrosoftSharePointUploadClient(baseUrl);
+            var uploadClient = new MicrosoftSharePointRestClient(baseUrl);
 
             do
             {
