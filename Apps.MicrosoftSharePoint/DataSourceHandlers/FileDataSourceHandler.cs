@@ -16,7 +16,7 @@ public class FileDataSourceHandler : BaseInvocable, IAsyncDataSourceItemHandler
     {
         var client = new SharePointBetaClient(InvocationContext.AuthenticationCredentialsProviders);
         var endpoint = "/drive/list/items?$select=id&$expand=driveItem($select=id,name,parentReference)&" +
-                       "$filter=fields/ContentType eq 'Document'&$top=20";
+                       "$filter=fields/ContentType eq 'Document'&$top=1000";
         var filesDictionary = new List<DataSourceItem>();
         var filesAmount = 0;
 
