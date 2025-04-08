@@ -71,9 +71,7 @@ public class DriveActions : BaseInvocable
             _authenticationCredentialsProviders);
         var response = await _client.ExecuteWithHandling(request);
         var filename = response.ContentHeaders.First(h => h.Name == "Content-Disposition").Value.ToString().Split('"')[1];
-        var contentType = response.ContentType == MediaTypeNames.Text.Plain
-            ? MediaTypeNames.Text.RichText
-            : response.ContentType;
+        var contentType = response.ContentType ?? MediaTypeNames.Text.Plain;
 
         using var stream = new MemoryStream(response.RawBytes);
         var file = await _fileManagementClient.UploadAsync(stream, contentType, filename);
