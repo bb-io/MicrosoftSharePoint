@@ -50,6 +50,6 @@ public class SharePointBetaClient : RestClient
             return new PluginApplicationException("Currently the Sharepoint service is not available. Please check your credentials or implement a retry policy and try again.");
         }
 
-        return new PluginApplicationException($"Error: {error.Error.Code} - {error.Error.Message}");
+        return new PluginApplicationException(error.Error.Message);
     }
 }
