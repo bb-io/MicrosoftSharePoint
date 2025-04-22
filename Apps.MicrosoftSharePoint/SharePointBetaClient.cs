@@ -41,10 +41,15 @@ public class SharePointBetaClient : RestClient
     {
         var error = responseContent.DeserializeObject<ErrorDto>();
 
-        if (error.Error.Code?.Equals("InternalServerError", StringComparison.OrdinalIgnoreCase) == true)
+        if (error.Error.Message.Contains("InternalServerError", StringComparison.OrdinalIgnoreCase) == true)
         {
             return new PluginApplicationException("An internal server error occurred. Please implement a retry policy and try again.");
         }
-        return new PluginApplicationException($"Error: {error.Error.Code} - {error.Error.Message}");
+        if (error.Error.Message.Contains("ServiceUnavailable", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            return new PluginApplicationException("Currently the Sharepoint service is not available. Please check your credentials or implement a retry policy and try again.");
+        }
+
+        return new PluginApplicationException(error.Error.Message);
     }
 }
