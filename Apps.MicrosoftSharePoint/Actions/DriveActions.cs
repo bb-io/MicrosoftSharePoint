@@ -84,8 +84,14 @@ public class DriveActions : BaseInvocable
     {
         if (folderIdentifier.ParentFolderId.StartsWith("/"))
         {
-            throw new PluginApplicationException("Incorrect parent folder ID. Please provide a valid folder ID, such as '01C7WXPSBPDJQQ2E2CTBFI5XXXXXXXXXX'.");
+            throw new PluginMisconfigurationException("Incorrect parent folder ID. Please provide a valid folder ID, such as '01C7WXPSBPDJQQ2E2CTBFI5XXXXXXXXXX'.");
         }
+        
+        if(input.File == null || input.File?.Name == null)
+        {
+            throw new PluginMisconfigurationException("File is null. Please provide a valid file.");
+        }
+
         const int fourMegabytesInBytes = 4194304;
         var file = await _fileManagementClient.DownloadAsync(input.File);
         var fileBytes = await file.GetByteData();
