@@ -17,7 +17,7 @@ namespace Tests.MicrosoftSharePoint
             var dataSourceHandler = new FolderDataSourceHandler(InvocationContext);
             var context = new DataSourceContext
             {
-                SearchString = "Auto"
+                SearchString = ""
             };
             var result = await dataSourceHandler.GetDataAsync(context, CancellationToken.None);
 
