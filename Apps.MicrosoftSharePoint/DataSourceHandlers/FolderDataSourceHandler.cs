@@ -53,20 +53,14 @@ public class FolderDataSourceHandler : BaseInvocable, IAsyncDataSourceHandler
         }
 
         string rootName = "Root Folder (default)";
-        try
+
+        var request1 = new SharePointRequest("/drive/root", Method.Get, InvocationContext.AuthenticationCredentialsProviders);
+        var rootFolder = await client.ExecuteWithHandling<FolderMetadataDto>(request1);
+        rootName = rootFolder.Name ?? "Root Folder (unnamed)";
+        if (string.IsNullOrWhiteSpace(context.SearchString) ||
+            rootName.Contains(context.SearchString, StringComparison.OrdinalIgnoreCase))
         {
-            var request = new SharePointRequest("/drive/root", Method.Get, InvocationContext.AuthenticationCredentialsProviders);
-            var rootFolder = await client.ExecuteWithHandling<FolderMetadataDto>(request);
-            rootName = rootFolder.Name ?? "Root Folder (unnamed)";
-            if (string.IsNullOrWhiteSpace(context.SearchString) ||
-                rootName.Contains(context.SearchString, StringComparison.OrdinalIgnoreCase))
-            {
-                foldersDictionary.Add(rootFolder.Id, rootName);
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Failed to fetch root folder: {ex.Message}");
+            foldersDictionary.Add(rootFolder.Id, rootName);
         }
 
         return foldersDictionary;
