@@ -35,7 +35,16 @@ public class FolderDataSourceHandler : BaseInvocable, IAsyncDataSourceHandler
                 foldersDictionary.Add(file.Id, file.Path);
 
             foldersAmount += filteredFolders.Count();
-            endpoint = folders.ODataNextLink == null ? null : "/drive" + folders.ODataNextLink?.Split("drive")[^1];
+            endpoint = folders.ODataNextLink;
+            if (endpoint != null && !endpoint.StartsWith("/drive/list/items"))
+            {
+                var queryString = endpoint.Contains("?") ? endpoint.Substring(endpoint.IndexOf("?")) : "";
+                endpoint = "/drive/list/items" + queryString;
+            }
+            if (endpoint != null && !Uri.IsWellFormedUriString(endpoint, UriKind.Relative))
+            {
+                endpoint = null;
+            }
         } while (foldersAmount < 20 && endpoint != null);
 
         foreach (var folder in foldersDictionary)
@@ -53,7 +62,6 @@ public class FolderDataSourceHandler : BaseInvocable, IAsyncDataSourceHandler
         }
 
         string rootName = "Root Folder (default)";
-
         var request1 = new SharePointRequest("/drive/root", Method.Get, InvocationContext.AuthenticationCredentialsProviders);
         var rootFolder = await client.ExecuteWithHandling<FolderMetadataDto>(request1);
         rootName = rootFolder.Name ?? "Root Folder (unnamed)";
@@ -72,9 +80,8 @@ public class FolderDataSourceHandler : BaseInvocable, IAsyncDataSourceHandler
             return folder.Name;
 
         var parentPath = folder.ParentReference.Path.Split("root:");
-        if (parentPath.Length < 2 || string.IsNullOrEmpty(parentPath[1]))
-            return folder.Name;
-
-        return $"{parentPath[1].Substring(1)}/{folder.Name}";
+        return parentPath.Length > 1 && !string.IsNullOrEmpty(parentPath[1])
+            ? $"{parentPath[1].TrimStart('/')}/{folder.Name}"
+            : folder.Name;
     }
 }
