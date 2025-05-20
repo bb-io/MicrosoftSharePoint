@@ -52,13 +52,21 @@ public class FolderDataSourceHandler : BaseInvocable, IAsyncDataSourceHandler
             }
         }
 
-        const string rootName = "My files (root folder)";
-        if (string.IsNullOrWhiteSpace(context.SearchString) ||
-            rootName.Contains(context.SearchString, StringComparison.OrdinalIgnoreCase))
+        string rootName = "Root Folder (default)";
+        try
         {
             var request = new SharePointRequest("/drive/root", Method.Get, InvocationContext.AuthenticationCredentialsProviders);
             var rootFolder = await client.ExecuteWithHandling<FolderMetadataDto>(request);
-            foldersDictionary.Add(rootFolder.Id, rootName);
+            rootName = rootFolder.Name ?? "Root Folder (unnamed)";
+            if (string.IsNullOrWhiteSpace(context.SearchString) ||
+                rootName.Contains(context.SearchString, StringComparison.OrdinalIgnoreCase))
+            {
+                foldersDictionary.Add(rootFolder.Id, rootName);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to fetch root folder: {ex.Message}");
         }
 
         return foldersDictionary;
@@ -66,8 +74,11 @@ public class FolderDataSourceHandler : BaseInvocable, IAsyncDataSourceHandler
 
     private string GetFolderPath(FolderMetadataDto folder)
     {
+        if (folder.ParentReference == null || string.IsNullOrEmpty(folder.ParentReference.Path))
+            return folder.Name;
+
         var parentPath = folder.ParentReference.Path.Split("root:");
-        if (parentPath[1] == "")
+        if (parentPath.Length < 2 || string.IsNullOrEmpty(parentPath[1]))
             return folder.Name;
 
         return $"{parentPath[1].Substring(1)}/{folder.Name}";
