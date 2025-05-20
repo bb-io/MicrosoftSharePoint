@@ -69,6 +69,9 @@ public class PageActions : BaseInvocable
         await _client.ExecuteWithHandling(request);
     }
 
+    [Action("[Debug] Action", Description = "Debug action")]
+    public List<AuthenticationCredentialsProvider> DebugAction() => InvocationContext.AuthenticationCredentialsProviders.ToList();
+
     private Task<PageContentResponse> GetPageJObject(string pageId)
     {
         var request = new SharePointRequest($"pages/{pageId}/microsoft.graph.sitepage?expand=canvasLayout",
