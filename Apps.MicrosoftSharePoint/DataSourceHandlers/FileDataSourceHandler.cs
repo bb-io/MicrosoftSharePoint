@@ -12,7 +12,7 @@ public class FileDataSourceHandler : BaseInvocable, IAsyncDataSourceItemHandler
     {
     }
 
-    async Task<IEnumerable<DataSourceItem>> IAsyncDataSourceItemHandler.GetDataAsync(DataSourceContext context, CancellationToken cancellationToken)
+    public async Task<IEnumerable<DataSourceItem>> GetDataAsync(DataSourceContext context, CancellationToken cancellationToken)
     {
         var client = new SharePointBetaClient(InvocationContext.AuthenticationCredentialsProviders);
         var endpoint = "/drive/list/items?$select=id&$expand=driveItem($select=id,name,parentReference)&" +
@@ -29,13 +29,23 @@ public class FileDataSourceHandler : BaseInvocable, IAsyncDataSourceItemHandler
             var filteredFiles = files.Value
                 .Select(w => w.DriveItem)
                 .Select(i => new { i.Id, Path = GetFilePath(i) })
-                .Where(i => i.Path.Contains(context.SearchString, StringComparison.OrdinalIgnoreCase));
+                .Where(i => string.IsNullOrEmpty(context.SearchString) ||
+                           i.Path.Contains(context.SearchString, StringComparison.OrdinalIgnoreCase));
 
             foreach (var file in filteredFiles)
                 filesDictionary.Add(new DataSourceItem(file.Id, file.Path));
 
             filesAmount += filteredFiles.Count();
-            endpoint = files.ODataNextLink == null ? null : "/drive" + files.ODataNextLink?.Split("drive")[^1];
+            endpoint = files.ODataNextLink;
+            if (endpoint != null && !endpoint.StartsWith("/drive/list/items"))
+            {
+                var queryString = endpoint.Contains("?") ? endpoint.Substring(endpoint.IndexOf("?")) : "";
+                endpoint = "/drive/list/items" + queryString;
+            }
+            if (endpoint != null && !Uri.IsWellFormedUriString(endpoint, UriKind.Relative))
+            {
+                endpoint = null;
+            }
         } while (filesAmount < 20 && endpoint != null);
 
         foreach (var file in filesDictionary)
@@ -47,7 +57,7 @@ public class FileDataSourceHandler : BaseInvocable, IAsyncDataSourceItemHandler
                 if (filePathParts.Length > 3)
                 {
                     filePath = string.Join("/", filePathParts[0], "...", filePathParts[^2], filePathParts[^1]);
-                    filesDictionary.First( x => x.Value == file.Value).DisplayName = filePath;
+                    filesDictionary.First(x => x.Value == file.Value).DisplayName = filePath;
                 }
             }
         }
@@ -56,10 +66,12 @@ public class FileDataSourceHandler : BaseInvocable, IAsyncDataSourceItemHandler
 
     private string GetFilePath(FileMetadataDto file)
     {
-        var parentPath = file.ParentReference.Path.Split("root:");
-        if (parentPath[1] == "")
+        if (file.ParentReference == null || string.IsNullOrEmpty(file.ParentReference.Path))
             return file.Name;
 
-        return $"{parentPath[1].Substring(1)}/{file.Name}";
+        var parentPath = file.ParentReference.Path.Split("root:");
+        return parentPath.Length > 1 && !string.IsNullOrEmpty(parentPath[1])
+            ? $"{parentPath[1].TrimStart('/')}/{file.Name}"
+            : file.Name;
     }
 }
