@@ -29,5 +29,23 @@ namespace Tests.MicrosoftSharePoint
             Assert.IsNotNull(result);
             Assert.IsTrue(result.Count > 0);
         }
+
+        [TestMethod]
+        public async Task FileDataHandler_IsSuccess()
+        {
+            var dataSourceHandler = new FileDataSourceHandler(InvocationContext);
+            var context = new DataSourceContext
+            {
+                SearchString = "tesla"
+            };
+            var result = await dataSourceHandler.GetDataAsync(context, CancellationToken.None);
+
+            foreach (var folder in result)
+            {
+                Console.WriteLine($"Key: {folder.DisplayName}, Value: {folder.Value}");
+            }
+
+            Assert.IsNotNull(result);
+        }
     }
 }
