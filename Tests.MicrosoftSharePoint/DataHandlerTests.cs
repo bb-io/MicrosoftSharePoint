@@ -36,7 +36,7 @@ namespace Tests.MicrosoftSharePoint
             var dataSourceHandler = new FileDataSourceHandler(InvocationContext);
             var context = new DataSourceContext
             {
-                SearchString = "tesla"
+                SearchString = "2.srt"
             };
             var result = await dataSourceHandler.GetDataAsync(context, CancellationToken.None);
 

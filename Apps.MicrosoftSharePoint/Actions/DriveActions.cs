@@ -220,5 +220,46 @@ public class DriveActions : BaseInvocable
         await _client.ExecuteWithHandling(request);
     }
 
+
+    [Action("Find folder", Description = "Find a folder by name within a specified parent folder. Returns empty if not found.")]
+    public async Task<FolderMetadataDto> FindFolderByName(
+    [ActionParameter] ParentFolderIdentifier parentFolderIdentifier,
+    [ActionParameter][Display("Folder name")] string folderName)
+    {
+        if (string.IsNullOrWhiteSpace(folderName))
+        {
+            throw new PluginMisconfigurationException("Folder name cannot be empty.");
+        }
+
+        var endpoint = $"/drive/items/{parentFolderIdentifier.ParentFolderId}/children?$select=id,name,folder";
+        var folderNameTrimmed = folderName.Trim();
+
+        try
+        {
+            do
+            {
+                var request = new SharePointRequest(endpoint, Method.Get, _authenticationCredentialsProviders);
+                var result = await _client.ExecuteWithHandling<ListWrapper<FolderMetadataDto>>(request);
+
+                var folder = result.Value
+                    .Where(item => item.ChildCount != null && item.Name.Contains(folderNameTrimmed, StringComparison.OrdinalIgnoreCase))
+                    .FirstOrDefault();
+
+                if (folder != null)
+                {
+                    return folder;
+                }
+
+                endpoint = result.ODataNextLink == null ? null : "/drive" + result.ODataNextLink?.Split("drive")[^1];
+            } while (endpoint != null);
+
+            return new FolderMetadataDto();
+        }
+        catch (Exception ex)
+        {
+            throw new PluginApplicationException($"Failed to find folder '{folderName}' in parent folder '{parentFolderIdentifier.ParentFolderId}'. Error: {ex.Message}");
+        }
+    }
+
     #endregion
 }
