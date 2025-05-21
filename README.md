@@ -56,6 +56,7 @@ Note: if you have just created a site, you should wait a couple of minutes befor
 - **List files in folder** retrieves metadata for files contained in a folder.
 - **Create folder in parent folder**.
 - **Delete folder**.
+- **Find folder** retrieves the metadata for a folder by its name and parent folder id.
 
 ## Events
 
