@@ -2,11 +2,15 @@
 using Apps.MicrosoftSharePoint.Extensions;
 using RestSharp;
 using Blackbird.Applications.Sdk.Common.Exceptions;
+using System.Net;
 
 namespace Apps.MicrosoftSharePoint;
 
 public class SharePointClient : RestClient
 {
+    private const int MaxRetries = 5;
+    private const int InitialDelayMs = 1000;
+
     public SharePointClient(string baseUrl) 
         : base(new RestClientOptions
         {
@@ -29,12 +33,28 @@ public class SharePointClient : RestClient
     
     public async Task<RestResponse> ExecuteWithHandling(RestRequest request)
     {
-        var response = await ExecuteAsync(request);
-        
-        if (response.IsSuccessful)
-            return response;
+        int delay = InitialDelayMs;
+        RestResponse? response = null;
 
-        throw ConfigureErrorException(response.Content);
+        for (int attempt = 1; attempt <= MaxRetries; attempt++)
+        {
+            response = await ExecuteAsync(request);
+
+            if (response.IsSuccessful)
+                return response;
+
+            if (attempt < MaxRetries &&
+                (response.StatusCode == HttpStatusCode.InternalServerError ||
+                 response.StatusCode == HttpStatusCode.ServiceUnavailable))
+            {
+                await Task.Delay(delay);
+                delay *= 2;
+                continue;
+            }
+            break;
+        }
+
+        throw ConfigureErrorException(response?.Content ?? string.Empty);
     }
 
     private Exception ConfigureErrorException(string responseContent)
