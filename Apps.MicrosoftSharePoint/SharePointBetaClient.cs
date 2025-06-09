@@ -4,15 +4,19 @@ using Apps.MicrosoftSharePoint.Extensions;
 using RestSharp;
 using Blackbird.Applications.Sdk.Common.Exceptions;
 using System.Globalization;
+using System.Net;
 
 namespace Apps.MicrosoftSharePoint;
 
 public class SharePointBetaClient : RestClient
 {
+    private const int MaxRetries = 5;
+    private const int InitialDelayMs = 1000;
     public SharePointBetaClient(IEnumerable<AuthenticationCredentialsProvider> authenticationCredentialsProviders) 
         : base(new RestClientOptions
         {
-            ThrowOnAnyError = false, BaseUrl = GetBaseUrl(authenticationCredentialsProviders)
+            ThrowOnAnyError = false, BaseUrl = GetBaseUrl(authenticationCredentialsProviders),
+            Timeout = TimeSpan.FromMinutes(5),
         }) { }
 
     private static Uri GetBaseUrl(IEnumerable<AuthenticationCredentialsProvider> authenticationCredentialsProviders)
@@ -26,15 +30,30 @@ public class SharePointBetaClient : RestClient
         var response = await ExecuteWithHandling(request);
         return response.Content.DeserializeObject<T>();
     }
-    
+
     public async Task<RestResponse> ExecuteWithHandling(RestRequest request)
     {
-        var response = await ExecuteAsync(request);
-        
-        if (response.IsSuccessful)
-            return response;
+        int delay = InitialDelayMs;
+        RestResponse? response = null;
 
-        throw ConfigureErrorException(response.Content);
+        for (int attempt = 1; attempt <= MaxRetries; attempt++)
+        {
+            response = await ExecuteAsync(request);
+
+            if (response.IsSuccessful)
+                return response;
+
+            if (attempt < MaxRetries &&
+                (response.StatusCode == HttpStatusCode.InternalServerError ||
+                 response.StatusCode == HttpStatusCode.ServiceUnavailable))
+            {
+                await Task.Delay(delay);
+                delay *= 2;
+                continue;
+            }
+            break;
+        }
+        throw ConfigureErrorException(response?.Content ?? string.Empty);
     }
 
     private Exception ConfigureErrorException(string responseContent)
