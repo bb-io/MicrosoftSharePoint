@@ -10,7 +10,7 @@ public class ConnectionDefinition : IConnectionDefinition
 {
     public IEnumerable<ConnectionPropertyGroup> ConnectionPropertyGroups => new List<ConnectionPropertyGroup>
     {
-        new ConnectionPropertyGroup
+        new()
         {
             Name = "OAuth",
             AuthenticationType = ConnectionAuthenticationType.OAuth2,
