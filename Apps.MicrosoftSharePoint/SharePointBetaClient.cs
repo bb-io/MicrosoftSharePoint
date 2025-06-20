@@ -69,10 +69,6 @@ public class SharePointBetaClient : RestClient
         {
             return new PluginApplicationException("Currently the Sharepoint service is not available. Please check your credentials or implement a retry policy and try again.");
         }
-        if (error.Error.Message?.Contains("Sequence contains no matching element", StringComparison.OrdinalIgnoreCase) == true)
-        {
-            return new PluginApplicationException("The specified file was not found or is inaccessible. Please verify the file ID.");
-        }
 
         return new PluginApplicationException(error.Error.Message);
     }

@@ -45,7 +45,8 @@ public class SharePointClient : RestClient
 
             if (attempt < MaxRetries &&
                 (response.StatusCode == HttpStatusCode.InternalServerError ||
-                 response.StatusCode == HttpStatusCode.ServiceUnavailable))
+                 response.StatusCode == HttpStatusCode.ServiceUnavailable ||
+                 response.StatusCode == HttpStatusCode.BadRequest))
             {
                 await Task.Delay(delay);
                 delay *= 2;
