@@ -45,7 +45,8 @@ public class SharePointBetaClient : RestClient
 
             if (attempt < MaxRetries &&
                 (response.StatusCode == HttpStatusCode.InternalServerError ||
-                 response.StatusCode == HttpStatusCode.ServiceUnavailable))
+                 response.StatusCode == HttpStatusCode.ServiceUnavailable || 
+                 response.StatusCode == HttpStatusCode.BadRequest))
             {
                 await Task.Delay(delay);
                 delay *= 2;
@@ -67,6 +68,10 @@ public class SharePointBetaClient : RestClient
         if (error.Error.Message.Contains("ServiceUnavailable", StringComparison.OrdinalIgnoreCase) == true)
         {
             return new PluginApplicationException("Currently the Sharepoint service is not available. Please check your credentials or implement a retry policy and try again.");
+        }
+        if (error.Error.Message?.Contains("Sequence contains no matching element", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            return new PluginApplicationException("The specified file was not found or is inaccessible. Please verify the file ID.");
         }
 
         return new PluginApplicationException(error.Error.Message);

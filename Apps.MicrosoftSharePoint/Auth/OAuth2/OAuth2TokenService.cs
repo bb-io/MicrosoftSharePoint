@@ -59,7 +59,12 @@ public class OAuth2TokenService : BaseInvocable, IOAuth2TokenService
         httpClient.DefaultRequestHeaders.Add("Accept", "application/json"); 
         using var httpContent = new FormUrlEncodedContent(bodyParameters); 
         using var response = await httpClient.PostAsync(TokenUrl, httpContent, cancellationToken); 
-        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken); 
+        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException($"Failed to obtain token: {responseContent}");
+        }
         var resultDictionary = JsonConvert.DeserializeObject<Dictionary<string, object>>(responseContent)?
                                    .ToDictionary(r => r.Key, r => r.Value?.ToString()) 
                                ?? throw new InvalidOperationException($"Invalid response content: {responseContent}");
