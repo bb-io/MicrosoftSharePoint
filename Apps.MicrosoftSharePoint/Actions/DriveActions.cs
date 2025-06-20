@@ -159,6 +159,20 @@ public class DriveActions : BaseInvocable
     [Action("Delete file", Description = "Delete file from site documents.")]
     public async Task DeleteFileById([ActionParameter] FileIdentifier fileIdentifier)
     {
+        if (string.IsNullOrEmpty(fileIdentifier.FileId))
+        {
+            throw new PluginMisconfigurationException("File ID cannot be empty. Please provide a valid file ID.");
+        }
+
+        try
+        {
+            await GetFileMetadataById(fileIdentifier);
+        }
+        catch (Exception ex)
+        {
+            throw new PluginApplicationException($"Failed to verify file existence for ID {fileIdentifier.FileId}. Error: {ex.Message}");
+        }
+
         var request = new SharePointRequest($"/drive/items/{fileIdentifier.FileId}", Method.Delete, 
             _authenticationCredentialsProviders); 
         await _client.ExecuteWithHandling(request);
