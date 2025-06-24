@@ -46,7 +46,8 @@ public class SharePointClient : RestClient
             if (attempt < MaxRetries &&
                 (response.StatusCode == HttpStatusCode.InternalServerError ||
                  response.StatusCode == HttpStatusCode.ServiceUnavailable ||
-                 response.StatusCode == HttpStatusCode.BadRequest))
+                 response.StatusCode == HttpStatusCode.BadRequest ||
+                 response.StatusCode == HttpStatusCode.TooManyRequests))
             {
                 await Task.Delay(delay);
                 delay *= 2;
@@ -65,6 +66,10 @@ public class SharePointClient : RestClient
         if (error.Error.Code?.Equals("InternalServerError", StringComparison.OrdinalIgnoreCase) == true)
         {
             return new PluginApplicationException("An internal server error occurred. Please implement a retry policy and try again.");
+        }
+        if (error.Error.Code?.Equals("TooManyRequests", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            return new PluginApplicationException("Too many requests. Please wait and try again later.");
         }
         return new PluginApplicationException($"{error.Error.Code} - {error.Error.Message}");
     }
