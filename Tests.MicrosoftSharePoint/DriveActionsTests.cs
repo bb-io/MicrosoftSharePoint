@@ -24,5 +24,18 @@ namespace Tests.MicrosoftSharePoint
 
             Assert.IsNotNull(result);
         }
+
+        [TestMethod]
+        public async Task GetFolder_IsSuccess()
+        {
+            var action = new DriveActions(InvocationContext, FileManager);
+
+            var result = await action.GetFolderMetadataById(
+                new ParentFolderIdentifier { ParentFolderId = "01C7WXPSHVF2MLHRDQM5GJNQXIMR5A3QGW" },
+                "Backup");
+            Console.WriteLine($"Key: {result.Id}, Value: {result.Name}");
+
+            Assert.IsNotNull(result);
+        }
     }
 }

@@ -45,7 +45,9 @@ public class SharePointBetaClient : RestClient
 
             if (attempt < MaxRetries &&
                 (response.StatusCode == HttpStatusCode.InternalServerError ||
-                 response.StatusCode == HttpStatusCode.ServiceUnavailable))
+                 response.StatusCode == HttpStatusCode.ServiceUnavailable || 
+                 response.StatusCode == HttpStatusCode.BadRequest ||
+                 response.StatusCode == HttpStatusCode.TooManyRequests))
             {
                 await Task.Delay(delay);
                 delay *= 2;
@@ -67,6 +69,10 @@ public class SharePointBetaClient : RestClient
         if (error.Error.Message.Contains("ServiceUnavailable", StringComparison.OrdinalIgnoreCase) == true)
         {
             return new PluginApplicationException("Currently the Sharepoint service is not available. Please check your credentials or implement a retry policy and try again.");
+        }
+        if (error.Error.Code?.Equals("TooManyRequests", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            return new PluginApplicationException("Too many requests. Please wait and try again later.");
         }
 
         return new PluginApplicationException(error.Error.Message);
