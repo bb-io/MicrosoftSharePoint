@@ -30,7 +30,7 @@ public class ConnectionDefinition : IConnectionDefinition
             $"Bearer {token}"
         );
         
-        var siteDisplayName = values.First(v => v.Key == "Site name").Value.Trim();
+        var siteDisplayName = values.First(v => v.Key == "Site name").Value; //removed Trim() temporary
         var siteId = GetSiteId(token, siteDisplayName);
         
         yield return new AuthenticationCredentialsProvider(

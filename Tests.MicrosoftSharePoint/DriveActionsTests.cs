@@ -25,17 +25,29 @@ namespace Tests.MicrosoftSharePoint
             Assert.IsNotNull(result);
         }
 
+        //[TestMethod]
+        //public async Task GetFolder_IsSuccess()
+        //{
+        //    var action = new DriveActions(InvocationContext, FileManager);
+
+        //    var result = await action.GetFolderMetadataById(
+        //        new ParentFolderIdentifier { ParentFolderId = "01C7WXPSHVF2MLHRDQM5GJNQXIMR5A3QGW" },
+        //        "Backup");
+        //    Console.WriteLine($"Key: {result.Id}, Value: {result.Name}");
+
+        //    Assert.IsNotNull(result);
+        //}
+
         [TestMethod]
-        public async Task GetFolder_IsSuccess()
+        public async Task test()
         {
-            var action = new DriveActions(InvocationContext, FileManager);
+            var test = "Test website ";
+            var action = test.Trim();
 
-            var result = await action.GetFolderMetadataById(
-                new ParentFolderIdentifier { ParentFolderId = "01C7WXPSHVF2MLHRDQM5GJNQXIMR5A3QGW" },
-                "Backup");
-            Console.WriteLine($"Key: {result.Id}, Value: {result.Name}");
+            Console.WriteLine($"Before: ({test}) - After: ({action})");
 
-            Assert.IsNotNull(result);
+            Assert.IsTrue(test == action);
+            //Assert.IsTrue(action.Contains(test));
         }
     }
 }
