@@ -51,7 +51,7 @@ public class ConnectionDefinition : IConnectionDefinition
             request.AddHeader("Authorization", $"Bearer {accessToken}");
             var response = client.Get(request);
             var resultSites = response.Content.DeserializeObject<ListWrapper<SiteDto>>();
-            siteId = resultSites.Value.FirstOrDefault(site => site.DisplayName == siteDisplayName)?.Id;
+            siteId = resultSites.Value.FirstOrDefault(site => string.Equals(site.DisplayName?.Trim(), siteDisplayName, StringComparison.Ordinal))?.Id;
 
             if (siteId != null)
                 break;
