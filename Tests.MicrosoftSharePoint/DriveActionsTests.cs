@@ -1,4 +1,5 @@
 ﻿using Apps.MicrosoftSharePoint.Actions;
+using Apps.MicrosoftSharePoint.Connections;
 using Apps.MicrosoftSharePoint.Models.Identifiers;
 using Blackbird.Applications.Sdk.Common.Dynamic;
 using System;
@@ -6,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static System.Collections.Specialized.BitVector32;
 
 namespace Tests.MicrosoftSharePoint
 {
@@ -37,17 +39,5 @@ namespace Tests.MicrosoftSharePoint
 
         //    Assert.IsNotNull(result);
         //}
-
-        [TestMethod]
-        public async Task test()
-        {
-            var test = "Test website ";
-            var action = test.Trim();
-
-            Console.WriteLine($"Before: ({test}) - After: ({action})");
-
-            Assert.IsTrue(test == action);
-            //Assert.IsTrue(action.Contains(test));
-        }
     }
 }
