@@ -39,7 +39,7 @@ public class ConnectionDefinition : IConnectionDefinition
         );
     }
 
-    private string? GetSiteId(string accessToken, string siteDisplayName)
+    public string? GetSiteId(string accessToken, string siteDisplayName)
     {
         var client = new SharePointClient();
         var endpoint = "/sites?search=*";

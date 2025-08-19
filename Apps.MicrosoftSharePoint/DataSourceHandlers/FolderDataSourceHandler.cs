@@ -15,8 +15,11 @@ public class FolderDataSourceHandler : BaseInvocable, IAsyncDataSourceHandler
     public async Task<Dictionary<string, string>> GetDataAsync(DataSourceContext context, CancellationToken cancellationToken)
     {
         var client = new SharePointBetaClient(InvocationContext.AuthenticationCredentialsProviders);
-        var endpoint = "/drive/list/items?$select=id&$expand=driveItem($select=id,name,parentReference)&" +
-                       "$filter=fields/ContentType eq 'Folder'&$top=1000";
+        var endpoint = "/drive/list/items" +
+                        "?$select=id" +
+                        "&$expand=driveItem($select=id,name,parentReference)" +
+                        "&$filter=startswith(fields/ContentTypeId,'0x0120')" + 
+                        "&$top=1000";
         var foldersDictionary = new Dictionary<string, string>();
         var foldersAmount = 0;
 
