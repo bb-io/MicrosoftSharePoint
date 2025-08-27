@@ -31,7 +31,7 @@ Copy the site name. For example, if the site name is "My communication site", co
 
 ## Connecting
 
-1. Navigate to apps and search for Microsoft SharePoint. If you cannot find Microsoft SharePoint then click _Add App_ in the top right corner, select Microsoft SharePoint and add the app to your Blackbird environment.
+1. Navigate to apps and search for Microsoft SharePoint.
 2. Click _Add Connection_.
 3. Name your connection for future reference e.g. 'My organization'.
 4. Fill in the display name of your site e.g. 'My communication site'. 
@@ -45,18 +45,23 @@ Note: if you have just created a site, you should wait a couple of minutes befor
 
 ## Actions
 
-### Documents
+### Files
 
+- **Search files in folder** retrieves metadata for files contained in a folder.
+- **Download file**.
 - **Get file metadata** retrieves the metadata for a file from site documents.
 - **List changed files** returns a list of all files that have been created or modified during past hours. If number of hours is not specified, files changed during past 24 hours are listed.
-- **Download file**.
 - **Upload file to folder**.
 - **Delete file**.
 - **Get folder metadata** retrieves the metadata for a folder.
-- **List files in folder** retrieves metadata for files contained in a folder.
 - **Create folder in parent folder**.
 - **Delete folder**.
 - **Find folder** retrieves the metadata for a folder by its name and parent folder id.
+
+### Pages
+
+- **Get page as HTML** Get content of a specific page in HTML format.
+- **Update page from HTML** Update content of a specific page from HTML file.
 
 ## Events
 

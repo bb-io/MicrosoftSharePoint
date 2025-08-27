@@ -12,6 +12,7 @@ using Blackbird.Applications.SDK.Extensions.FileManagement.Interfaces;
 using Blackbird.Applications.Sdk.Utils.Extensions.Files;
 using RestSharp;
 using Blackbird.Applications.Sdk.Common.Exceptions;
+using Microsoft.Extensions.Logging;
 
 namespace Apps.MicrosoftSharePoint.Actions;
 
@@ -191,8 +192,9 @@ public class DriveActions : BaseInvocable
         return folderMetadata;
     }
 
-    [Action("List files in folder", Description = "Retrieve metadata for files contained in a folder.")]
-    public async Task<ListFilesResponse> ListFilesInFolderById([ActionParameter] FolderIdentifier folderIdentifier)
+    [Action("Search files in folder", Description = "Retrieve metadata for files contained in a folder.")]
+    public async Task<ListFilesResponse> ListFilesInFolderById([ActionParameter] FolderIdentifier folderIdentifier,
+        [ActionParameter] filterExtensions extensions)
     {
         var filesInFolder = new List<FileMetadataDto>();
         var endpoint = $"/drive/items/{folderIdentifier.FolderId}/children";
@@ -202,6 +204,14 @@ public class DriveActions : BaseInvocable
             var request = new SharePointRequest(endpoint, Method.Get, _authenticationCredentialsProviders);
             var result = await _client.ExecuteWithHandling<ListWrapper<FileMetadataDto>>(request);
             var files = result.Value.Where(item => item.MimeType != null);
+            if (extensions != null && extensions?.Extensions?.Count() > 0)
+            {
+                files = files.Where(item =>
+                    !string.IsNullOrEmpty(item.Name) &&
+                    extensions.Extensions.Any(ext =>
+                        item.Name.EndsWith(ext, StringComparison.OrdinalIgnoreCase)));
+            }
+
             filesInFolder.AddRange(files);
             endpoint = result.ODataNextLink == null ? null : "/drive" + result.ODataNextLink?.Split("drive")[^1];
         } while (endpoint != null);
