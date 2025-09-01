@@ -18,7 +18,7 @@ public class ConnectionDefinition : IConnectionDefinition
             AuthenticationType = ConnectionAuthenticationType.OAuth2,
             ConnectionProperties = new List<ConnectionProperty>
             {
-                new("Site name")
+                new("Site URL")
             }
         },
     };
