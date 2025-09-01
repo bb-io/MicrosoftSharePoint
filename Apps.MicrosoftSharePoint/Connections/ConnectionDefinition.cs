@@ -3,6 +3,8 @@ using Blackbird.Applications.Sdk.Common.Authentication;
 using Blackbird.Applications.Sdk.Common.Connections;
 using Apps.MicrosoftSharePoint.Extensions;
 using RestSharp;
+using Blackbird.Applications.Sdk.Common.Exceptions;
+using System.Net;
 
 namespace Apps.MicrosoftSharePoint.Connections;
 
@@ -16,7 +18,7 @@ public class ConnectionDefinition : IConnectionDefinition
             AuthenticationType = ConnectionAuthenticationType.OAuth2,
             ConnectionProperties = new List<ConnectionProperty>
             {
-                new("Site name")
+                new("Site URL")
             }
         },
     };
@@ -30,7 +32,7 @@ public class ConnectionDefinition : IConnectionDefinition
             $"Bearer {token}"
         );
         
-        var siteDisplayName = values.First(v => v.Key == "Site name").Value.Trim();
+        var siteDisplayName = values.First(v => v.Key == "Site URL").Value.Trim();
         var siteId = GetSiteId(token, siteDisplayName);
         
         yield return new AuthenticationCredentialsProvider(
@@ -39,26 +41,36 @@ public class ConnectionDefinition : IConnectionDefinition
         );
     }
 
-    public string? GetSiteId(string accessToken, string siteDisplayName)
+    public string? GetSiteId(string accessToken, string siteUrl)
     {
+        if (!Uri.TryCreate(siteUrl, UriKind.Absolute, out var uri))
+            throw new PluginMisconfigurationException($"Invalid SharePoint site URL: {siteUrl}");
+
+        var host = uri.Host;
+
+        var serverRelativePath = uri.AbsolutePath;
+        serverRelativePath = "/" + serverRelativePath.Trim('/');
+
+        var endpoint = serverRelativePath == "/"
+           ? $"/sites/{host}"
+           : $"/sites/{host}:{serverRelativePath}";
+
         var client = new SharePointClient();
-        var endpoint = "/sites?search=*";
-        string siteId;
+        var request = new RestRequest(endpoint);
+        request.AddHeader("Authorization", $"Bearer {accessToken}");
 
-        do
-        {
-            var request = new RestRequest(endpoint);
-            request.AddHeader("Authorization", $"Bearer {accessToken}");
-            var response = client.Get(request);
-            var resultSites = response.Content.DeserializeObject<ListWrapper<SiteDto>>();
-            siteId = resultSites.Value.FirstOrDefault(site => string.Equals(site.DisplayName?.Trim(), siteDisplayName, StringComparison.Ordinal))?.Id;
+        var response = client.Get(request);
+        if (response.StatusCode != HttpStatusCode.OK || string.IsNullOrWhiteSpace(response.Content))
+            throw new PluginApplicationException(
+                $"Failed to resolve site by URL '{siteUrl}'. " +
+                $"Status: {(int)response.StatusCode} {response.StatusDescription}. Body: {response.Content}");
 
-            if (siteId != null)
-                break;
+        var site = response.Content.DeserializeObject<SiteDto>()
+                   ?? throw new PluginApplicationException($"Unexpected response while resolving site '{siteUrl}'.");
 
-            endpoint = resultSites.ODataNextLink?.Split("v1.0")[^1];
-        } while (endpoint != null);
+        if (string.IsNullOrWhiteSpace(site.Id))
+            throw new PluginApplicationException($"Resolved site has empty Id. URL: {siteUrl}");
 
-        return siteId;
+        return site.Id!;
     }
 }
