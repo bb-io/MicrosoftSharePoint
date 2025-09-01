@@ -17,17 +17,10 @@ Before you can connect you need to make sure that:
 
 ### How to find site name
 
-You can find the site name:
+You can find the site URL on SharePoint site main page.
+![Main page](image/README/my-site-Url.png)
 
-- On SharePoint start page.
-![Start page](image/README/sharepoint-start-page.png)
-
-- OR By clicking on _My sites_ tab.
-![My sites](image/README/my-sites.png)
-
-From there, you can view your sites and choose the one you want to work with. 
-
-Copy the site name. For example, if the site name is "My communication site", copy this.
+Copy the site URL.
 
 ## Connecting
 

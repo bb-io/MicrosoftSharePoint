@@ -16,7 +16,7 @@ public class ConnectionValidator : IConnectionValidator
             return new ConnectionValidationResponse
             {
                 IsValid = false,
-                Message = "Please provide correct site name."
+                Message = "Please provide correct site URL."
             };
             
         var client = new SharePointBetaClient(authenticationCredentialsProviders);
