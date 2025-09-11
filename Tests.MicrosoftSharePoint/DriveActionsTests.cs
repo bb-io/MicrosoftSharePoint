@@ -1,43 +1,37 @@
-﻿using Apps.MicrosoftSharePoint.Actions;
-using Apps.MicrosoftSharePoint.Connections;
+﻿using Newtonsoft.Json;
+using Apps.MicrosoftSharePoint.Actions;
 using Apps.MicrosoftSharePoint.Models.Identifiers;
-using Blackbird.Applications.Sdk.Common.Dynamic;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using static System.Collections.Specialized.BitVector32;
 
-namespace Tests.MicrosoftSharePoint
+namespace Tests.MicrosoftSharePoint; 
+
+[TestClass]
+public class DriveActionsTests :TestBase
 {
-    [TestClass]
-    public class DriveActionsTests :TestBase
+    [TestMethod]
+    public async Task FindFolder_IsSuccess()
     {
-        [TestMethod]
-        public async Task FindFolder_IsSuccess()
-        {
-            var action = new DriveActions(InvocationContext,FileManager);
-           
-            var result = await action.FindFolderByName(
-                new ParentFolderIdentifier { ParentFolderId= "01C7WXPSHVF2MLHRDQM5GJNQXIMR5A3QGW" },
-                "Backup");
-                Console.WriteLine($"Key: {result.Id}, Value: {result.Name}");
+        var action = new DriveActions(InvocationContext,FileManager);
+       
+        var result = await action.FindFolderByName(
+            new ParentFolderIdentifier { ParentFolderId= "01C7WXPSHVF2MLHRDQM5GJNQXIMR5A3QGW" },
+            "Backup");
+            Console.WriteLine($"Key: {result.Id}, Value: {result.Name}");
 
-            Assert.IsNotNull(result);
-        }
+        Assert.IsNotNull(result);
+    }
 
-        //[TestMethod]
-        //public async Task GetFolder_IsSuccess()
-        //{
-        //    var action = new DriveActions(InvocationContext, FileManager);
+    [TestMethod]
+    public async Task GetFileMetadata_IsSuccess()
+    {
+        // Arrange
+        var action = new DriveActions(InvocationContext, FileManager);
+        var fileId = "017O7UAG2K5K5ZS2DUTVDYLK4QKARACM54";
 
-        //    var result = await action.GetFolderMetadataById(
-        //        new ParentFolderIdentifier { ParentFolderId = "01C7WXPSHVF2MLHRDQM5GJNQXIMR5A3QGW" },
-        //        "Backup");
-        //    Console.WriteLine($"Key: {result.Id}, Value: {result.Name}");
+        // Act
+        var result = await action.GetFileMetadataById(new FileIdentifier { FileId = fileId });
 
-        //    Assert.IsNotNull(result);
-        //}
+        // Assert
+        Console.WriteLine(JsonConvert.SerializeObject(result, Formatting.Indented));
+        Assert.IsNotNull(result);
     }
 }

@@ -11,13 +11,18 @@ public class FileMetadataDto
     
     [Display("Filename")]
     public string Name { get; set; }
-    
+
     [Display("Web URL")]
     public string? WebUrl { get; set; }
     
     [Display("Size in bytes")]
     public long? Size { get; set; }
-    
+
+    [JsonProperty("listItem")]
+    [JsonConverter(typeof(FieldsConverter))]
+    [Display("Details")]
+    public FieldDto? Details { get; set; }
+
     [JsonProperty("file")]
     [JsonConverter(typeof(MimeTypeConverter))]
     [Display("Mime type")]

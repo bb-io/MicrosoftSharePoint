@@ -12,7 +12,6 @@ using Blackbird.Applications.SDK.Extensions.FileManagement.Interfaces;
 using Blackbird.Applications.Sdk.Utils.Extensions.Files;
 using RestSharp;
 using Blackbird.Applications.Sdk.Common.Exceptions;
-using Microsoft.Extensions.Logging;
 
 namespace Apps.MicrosoftSharePoint.Actions;
 
@@ -36,8 +35,11 @@ public class DriveActions : BaseInvocable
     [Action("Get file metadata", Description = "Retrieve the metadata for a file from site documents.")]
     public async Task<FileMetadataDto> GetFileMetadataById([ActionParameter] FileIdentifier fileIdentifier)
     {
-        var request = new SharePointRequest($"/drive/items/{fileIdentifier.FileId}", Method.Get, 
-            _authenticationCredentialsProviders);
+        var request = new SharePointRequest(
+            $"/drive/items/{fileIdentifier.FileId}?expand=listItem", 
+            Method.Get, 
+            _authenticationCredentialsProviders
+        );
         var fileMetadata = await _client.ExecuteWithHandling<FileMetadataDto>(request);
         return fileMetadata;
     }
