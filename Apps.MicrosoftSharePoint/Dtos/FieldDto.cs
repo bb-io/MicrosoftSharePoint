@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using Blackbird.Applications.Sdk.Common;
+using Apps.MicrosoftSharePoint.Converters;
 
 namespace Apps.MicrosoftSharePoint.Dtos;
 
@@ -7,12 +8,8 @@ public class FieldDto
 {
     public string? Title { get; set; }
 
-    [JsonIgnore]
-    private string? ImageTags { get; set; }
-
-    [JsonProperty("ImageTags")]
+    [JsonProperty("MediaServiceImageTags")]
+    [JsonConverter(typeof(ImageTagConverter))]
     [Display("Image tags")]
-    public string[] ImageTagArray => string.IsNullOrEmpty(ImageTags)
-        ? Array.Empty<string>()
-        : ImageTags.Split(';', StringSplitOptions.RemoveEmptyEntries);
+    public string[]? ImageTags { get; set; }
 }

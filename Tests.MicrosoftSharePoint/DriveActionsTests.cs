@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using Apps.MicrosoftSharePoint.Actions;
+using Apps.MicrosoftSharePoint.Models.Requests;
 using Apps.MicrosoftSharePoint.Models.Identifiers;
 
 namespace Tests.MicrosoftSharePoint; 
@@ -13,7 +14,7 @@ public class DriveActionsTests :TestBase
         var action = new DriveActions(InvocationContext,FileManager);
        
         var result = await action.FindFolderByName(
-            new ParentFolderIdentifier { ParentFolderId= "01C7WXPSHVF2MLHRDQM5GJNQXIMR5A3QGW" },
+            new ParentFolderIdentifier { ParentFolderId = "01C7WXPSHVF2MLHRDQM5GJNQXIMR5A3QGW" },
             "Backup");
             Console.WriteLine($"Key: {result.Id}, Value: {result.Name}");
 
@@ -25,10 +26,28 @@ public class DriveActionsTests :TestBase
     {
         // Arrange
         var action = new DriveActions(InvocationContext, FileManager);
-        var fileId = "017O7UAG2K5K5ZS2DUTVDYLK4QKARACM54";
+        var fileId = "01Q6TCMYOLVEFH7YXSJBGZKI2JGUATR5AH";
 
         // Act
         var result = await action.GetFileMetadataById(new FileIdentifier { FileId = fileId });
+
+        // Assert
+        Console.WriteLine(JsonConvert.SerializeObject(result, Formatting.Indented));
+        Assert.IsNotNull(result);
+    }
+
+    [TestMethod]
+    public async Task ListFilesInFolderById_IsSuccess()
+    {
+        // Arrange
+        var action = new DriveActions(InvocationContext, FileManager);
+        var folderId = "01Q6TCMYPJNODF2KHBNRBYIMJKJZHHSLOR";
+
+        // Act
+        var result = await action.ListFilesInFolderById(
+            new FolderIdentifier { FolderId = folderId },
+            new filterExtensions { Extensions = [".doc", ".docx"] }
+        );
 
         // Assert
         Console.WriteLine(JsonConvert.SerializeObject(result, Formatting.Indented));
