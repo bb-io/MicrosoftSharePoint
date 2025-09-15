@@ -74,6 +74,13 @@ public class SharePointBetaClient : RestClient
         {
             return new PluginApplicationException("Too many requests. Please wait and try again later.");
         }
+        if (error.Error.Message.Contains("The resource could not be found", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            return new PluginMisconfigurationException(
+                "The resource URL could not be found. Try to adjust your connection URL: " +
+                "https://docs.blackbird.io/apps/microsoft-sharepoint/#how-to-find-site-url"
+            );
+        }
 
         return new PluginApplicationException(error.Error.Message);
     }
