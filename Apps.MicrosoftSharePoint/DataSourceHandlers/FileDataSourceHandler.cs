@@ -28,12 +28,12 @@ public class FileDataSourceHandler : BaseInvocable, IAsyncDataSourceItemHandler
             var files = await client.ExecuteWithHandling<ListWrapper<DriveItemWrapper<FileMetadataDto>>>(request);
             var filteredFiles = files.Value
                 .Select(w => w.DriveItem)
-                .Select(i => new { i.Id, Path = GetFilePath(i) })
+                .Select(i => new { i.FileId, Path = GetFilePath(i) })
                 .Where(i => string.IsNullOrEmpty(context.SearchString) ||
                            i.Path.Contains(context.SearchString, StringComparison.OrdinalIgnoreCase));
 
             foreach (var file in filteredFiles)
-                filesDictionary.Add(new DataSourceItem(file.Id, file.Path));
+                filesDictionary.Add(new DataSourceItem(file.FileId, file.Path));
 
             filesAmount += filteredFiles.Count();
             endpoint = files.ODataNextLink;
