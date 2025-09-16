@@ -1,13 +1,14 @@
 ﻿using Apps.MicrosoftSharePoint.Converters;
 using Blackbird.Applications.Sdk.Common;
+using Blackbird.Applications.SDK.Blueprints.Interfaces.FileStorage;
 using Newtonsoft.Json;
 
 namespace Apps.MicrosoftSharePoint.Dtos;
 
-public class FileMetadataDto
+public class FileMetadataDto : IDownloadFileInput
 {
     [Display("File ID")]
-    public string Id { get; set; }
+    public string FileId { get; set; }
     
     [Display("Filename")]
     public string Name { get; set; }

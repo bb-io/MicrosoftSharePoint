@@ -6,7 +6,7 @@ namespace Apps.MicrosoftSharePoint.Webhooks.Inputs;
 
 public class FolderInput
 {
-    [Display("Parent folder")] 
+    [Display("Folder ID")] 
     [DataSource(typeof(FolderDataSourceHandler))]
     public string? ParentFolderId { get; set; }
 }
