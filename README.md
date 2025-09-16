@@ -40,14 +40,14 @@ Note: if you have just created a site, you should wait a couple of minutes befor
 
 ### Files
 
-- **Search files in folder** retrieves metadata for files contained in a folder.
+- **Search files** retrieves metadata for files contained in a folder.
 - **Download file**.
 - **Get file metadata** retrieves the metadata for a file from site documents.
 - **List changed files** returns a list of all files that have been created or modified during past hours. If number of hours is not specified, files changed during past 24 hours are listed.
-- **Upload file to folder**.
+- **Upload file** uploads file to the specified folder.
 - **Delete file**.
 - **Get folder metadata** retrieves the metadata for a folder.
-- **Create folder in parent folder**.
+- **Create folder** creates new folder in the specified parent folder.
 - **Delete folder**.
 - **Find folder** retrieves the metadata for a folder by its name and parent folder id.
 

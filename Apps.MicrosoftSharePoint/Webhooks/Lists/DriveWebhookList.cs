@@ -9,6 +9,7 @@ using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Authentication;
 using Blackbird.Applications.Sdk.Common.Invocation;
 using Blackbird.Applications.Sdk.Common.Webhooks;
+using Blackbird.Applications.SDK.Blueprints;
 using Microsoft.AspNetCore.WebUtilities;
 using RestSharp;
 
@@ -26,6 +27,7 @@ public class DriveWebhookList : BaseInvocable
         _authenticationCredentialsProviders = invocationContext.AuthenticationCredentialsProviders;
     }
 
+    [BlueprintEventDefinition(BlueprintEvent.FilesCreatedOrUpdated)]
     [Webhook("On files updated or created", typeof(DriveWebhookHandler), 
         Description = "This webhook is triggered when files are updated or created.")]
     public async Task<WebhookResponse<ListFilesResponse>> OnFilesUpdatedOrCreated(WebhookRequest request, 

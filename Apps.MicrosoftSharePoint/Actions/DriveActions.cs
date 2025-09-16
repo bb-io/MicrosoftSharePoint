@@ -12,6 +12,7 @@ using Blackbird.Applications.SDK.Extensions.FileManagement.Interfaces;
 using Blackbird.Applications.Sdk.Utils.Extensions.Files;
 using RestSharp;
 using Blackbird.Applications.Sdk.Common.Exceptions;
+using Blackbird.Applications.SDK.Blueprints;
 
 namespace Apps.MicrosoftSharePoint.Actions;
 
@@ -67,6 +68,7 @@ public class DriveActions : BaseInvocable
         return new ListFilesResponse { Files = changedFiles };
     }
     
+    [BlueprintActionDefinition(BlueprintAction.DownloadFile)]
     [Action("Download file", Description = "Download a file from site documents.")]
     public async Task<FileResponse> DownloadFileById([ActionParameter] FileIdentifier fileIdentifier)
     {
@@ -80,8 +82,9 @@ public class DriveActions : BaseInvocable
         var file = await _fileManagementClient.UploadAsync(stream, contentType, filename);
         return new FileResponse { File = file };
     }
-    
-    [Action("Upload file to folder", Description = "Upload a file to a parent folder.")]
+
+    [BlueprintActionDefinition(BlueprintAction.UploadFile)]
+    [Action("Upload file", Description = "Upload a file to a parent folder.")]
     public async Task<FileMetadataDto> UploadFileInFolderById([ActionParameter] ParentFolderIdentifier folderIdentifier,
         [ActionParameter] UploadFileRequest input)
     {
@@ -194,7 +197,7 @@ public class DriveActions : BaseInvocable
         return folderMetadata;
     }
 
-    [Action("Search files in folder", Description = "Retrieve metadata for files contained in a folder.")]
+    [Action("Search files", Description = "Retrieve metadata for files contained in a folder.")]
     public async Task<ListFilesResponse> ListFilesInFolderById([ActionParameter] FolderIdentifier folderIdentifier,
         [ActionParameter] filterExtensions extensions)
     {
@@ -221,7 +224,7 @@ public class DriveActions : BaseInvocable
         return new ListFilesResponse { Files = filesInFolder };
     }
     
-    [Action("Create folder in parent folder", Description = "Create a new folder in parent folder.")]
+    [Action("Create folder", Description = "Create a new folder in parent folder.")]
     public async Task<FolderMetadataDto> CreateFolderInParentFolderWithId(
         [ActionParameter] ParentFolderIdentifier folderIdentifier,
         [ActionParameter] [Display("Folder name")] string folderName)
