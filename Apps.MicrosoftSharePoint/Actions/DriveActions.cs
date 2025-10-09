@@ -16,7 +16,7 @@ using Blackbird.Applications.SDK.Blueprints;
 
 namespace Apps.MicrosoftSharePoint.Actions;
 
-[ActionList]
+[ActionList("Files")]
 public class DriveActions : BaseInvocable
 {
     private readonly IEnumerable<AuthenticationCredentialsProvider> _authenticationCredentialsProviders;
