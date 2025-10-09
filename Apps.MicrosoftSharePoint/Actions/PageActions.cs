@@ -15,7 +15,7 @@ using RestSharp;
 
 namespace Apps.MicrosoftSharePoint.Actions;
 
-[ActionList]
+[ActionList("Pages")]
 public class PageActions : BaseInvocable
 {
     private readonly IEnumerable<AuthenticationCredentialsProvider> _authenticationCredentialsProviders;
