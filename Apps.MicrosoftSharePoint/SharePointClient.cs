@@ -63,13 +63,14 @@ public class SharePointClient : RestClient
     {
         var error = responseContent.DeserializeObject<ErrorDto>();
 
-        if (error.Error.Code?.Equals("InternalServerError", StringComparison.OrdinalIgnoreCase) == true)
+        if ((error?.Error.Message?.Contains("Internal Server Error", StringComparison.OrdinalIgnoreCase) ?? false) || (error?.Error.Message?.Contains("InternalServerError", StringComparison.OrdinalIgnoreCase) ?? false))
         {
             return new PluginApplicationException("An internal server error occurred. Please implement a retry policy and try again.");
         }
-        if (error.Error.Code?.Equals("TooManyRequests", StringComparison.OrdinalIgnoreCase) == true)
+
+        if ((error?.Error.Message?.Contains("Service Unavailable", StringComparison.OrdinalIgnoreCase) ?? false) || (error?.Error.Message?.Contains("ServiceUnavailable", StringComparison.OrdinalIgnoreCase) ?? false))
         {
-            return new PluginApplicationException("Too many requests. Please wait and try again later.");
+            return new PluginApplicationException("Server service unavailable error occurred. Please implement a retry policy and try again.");
         }
         return new PluginApplicationException($"{error.Error.Code} - {error.Error.Message}");
     }
