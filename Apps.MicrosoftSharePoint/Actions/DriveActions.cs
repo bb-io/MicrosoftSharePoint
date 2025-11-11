@@ -88,6 +88,11 @@ public class DriveActions : BaseInvocable
     public async Task<FileMetadataDto> UploadFileInFolderById([ActionParameter] ParentFolderIdentifier folderIdentifier,
         [ActionParameter] UploadFileRequest input)
     {
+        if (string.IsNullOrEmpty(folderIdentifier.ParentFolderId))
+        {
+            throw new PluginMisconfigurationException("Parent folder ID cannot be empty. Please provide a valid folder ID.");
+        }
+
         if (folderIdentifier.ParentFolderId.StartsWith("/"))
         {
             throw new PluginMisconfigurationException("Incorrect parent folder ID. Please provide a valid folder ID, such as '01C7WXPSBPDJQQ2E2CTBFI5XXXXXXXXXX'.");
