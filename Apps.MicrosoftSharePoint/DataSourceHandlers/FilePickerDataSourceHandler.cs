@@ -7,6 +7,7 @@ using Blackbird.Applications.Sdk.Common.Invocation;
 using Blackbird.Applications.SDK.Extensions.FileManagement.Interfaces;
 using Blackbird.Applications.SDK.Extensions.FileManagement.Models.FileDataSourceItems;
 using File = Blackbird.Applications.SDK.Extensions.FileManagement.Models.FileDataSourceItems.File;
+using Blackbird.Applications.Sdk.Common.Exceptions;
 
 namespace Apps.MicrosoftSharePoint.DataSourceHandlers;
 
@@ -64,10 +65,10 @@ public class FilePickerDataSourceHandler(InvocationContext invocationContext)
         catch (Exception ex)
         {
             InvocationContext.Logger?.LogError(
-                $"SharePoint -> GetFolderContentAsync: {ex.Message} {ex.InnerException}", 
+                $"SharePoint -> GetFolderContentAsync: {ex.Message} {ex.StackTrace}", 
                 null
             );
-            return null;
+            throw new PluginApplicationException(ex.Message);
         }
     }
 
@@ -125,10 +126,10 @@ public class FilePickerDataSourceHandler(InvocationContext invocationContext)
         catch (Exception ex)
         {
             InvocationContext.Logger?.LogError(
-                $"SharePoint -> GetFolderPathAsync: {ex.Message} {ex.InnerException}",
+                $"SharePoint -> GetFolderPathAsync: {ex.Message} {ex.StackTrace}",
                 null
             );
-            return null;
+            throw new PluginApplicationException(ex.Message);
         }
     }
 
