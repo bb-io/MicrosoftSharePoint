@@ -13,14 +13,11 @@ namespace Apps.MicrosoftSharePoint.DataSourceHandlers;
 public class FilePickerDataSourceHandler(InvocationContext invocationContext)
     : BaseInvocable(invocationContext), IAsyncFileDataSourceItemHandler
 {
-    private const string RootId = "root";
     private const string RootFolderDisplayName = "My files";
 
     public async Task<IEnumerable<FileDataItem>> GetFolderContentAsync(FolderContentDataSourceContext context, CancellationToken cancellationToken)
     {
-        var folderId = string.IsNullOrEmpty(context.FolderId) ? RootId : context.FolderId;
-
-        if (folderId == RootId)
+        if (string.IsNullOrEmpty(context.FolderId))
         {
             var drives = await GetDrives();
             return drives.Value.Select(x =>
@@ -28,7 +25,7 @@ public class FilePickerDataSourceHandler(InvocationContext invocationContext)
             );
         }
 
-        var idParts = folderId.Split('#');
+        var idParts = context.FolderId.Split('#');
         var driveId = idParts[0];
         var parentItemId = idParts.Length > 1 ? idParts[1] : null;
 
@@ -67,8 +64,8 @@ public class FilePickerDataSourceHandler(InvocationContext invocationContext)
 
     public async Task<IEnumerable<FolderPathItem>> GetFolderPathAsync(FolderPathDataSourceContext context, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrEmpty(context?.FileDataItemId) || context.FileDataItemId == RootId)
-            return new List<FolderPathItem> { new() { DisplayName = RootFolderDisplayName, Id = RootId } };
+        if (string.IsNullOrEmpty(context.FileDataItemId))
+            return Enumerable.Empty<FolderPathItem>();
 
         var path = new List<FolderPathItem>();
         var idParts = context.FileDataItemId.Split('#');
@@ -110,7 +107,6 @@ public class FilePickerDataSourceHandler(InvocationContext invocationContext)
             }
         }
 
-        path.Add(new FolderPathItem { DisplayName = RootFolderDisplayName, Id = RootId });
         path.Reverse();
 
         return path;
