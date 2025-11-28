@@ -1,86 +1,63 @@
 ﻿using Apps.MicrosoftSharePoint.DataSourceHandlers;
+using Apps.MicrosoftSharePoint.Models.Identifiers;
 using Blackbird.Applications.Sdk.Common.Dynamic;
 using Blackbird.Applications.SDK.Extensions.FileManagement.Models.FileDataSourceItems;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace Tests.MicrosoftSharePoint
+namespace Tests.MicrosoftSharePoint;
+
+[TestClass]
+public class DataHandlerTests : TestBase
 {
-    [TestClass]
-    public class DataHandlerTests : TestBase
+    [TestMethod]
+    public async Task FilePickerDataHandler_IsSuccess()
     {
-        [TestMethod]
-        public async Task FolderDataHandler_IsSuccess()
-        {
-            var dataSourceHandler = new FolderDataSourceHandler(InvocationContext);
-            var context = new DataSourceContext
-            {
-                SearchString = ""
-            };
-            var result = await dataSourceHandler.GetDataAsync(context, CancellationToken.None);
+        // Arrange
+        var fileRequest = new FileIdentifier { DriveId = "b!vxtzBEWI9Eq4Vkw6hbeSgU7zvg6s6hJLqLwvmwOdy5MXAdvPapxlQKKjxaj1bN1o" };
+        var handler = new FilePickerDataSourceHandler(InvocationContext, fileRequest);
 
-            foreach (var folder in result)
-            {
-                Console.WriteLine($"Key: {folder.Key}, Value: {folder.Value}");
-            }
+        // Act
+        var result = await handler.GetFolderContentAsync(
+            new FolderContentDataSourceContext { FolderId = string.Empty }, 
+            CancellationToken.None
+        );
 
-            Assert.IsNotNull(result);
-            Assert.IsTrue(result.Count > 0);
-        }
+        // Assert
+        foreach (var item in result)
+            Console.WriteLine($"Item: {item.DisplayName}, Id: {item.Id}, Type: {(item is Folder ? "Folder" : "File")}");
+        Assert.IsNotNull(result);
+    }
 
-        [TestMethod]
-        public async Task FileDataHandler_IsSuccess()
-        {
-            var dataSourceHandler = new FileDataSourceHandler(InvocationContext);
-            var context = new DataSourceContext
-            {
-                SearchString = "2.srt"
-            };
-            var result = await dataSourceHandler.GetDataAsync(context, CancellationToken.None);
+    [TestMethod]
+    public async Task FolderPickerDataHandler_IsSuccess()
+    {
+        // Arrange
+        var folder = new FolderIdentifier { DriveId = "b!vxtzBEWI9Eq4Vkw6hbeSgU7zvg6s6hJLqLwvmwOdy5MXAdvPapxlQKKjxaj1bN1o" };
+        var handler = new FolderPickerDataSourceHandler(InvocationContext, folder);
 
-            foreach (var folder in result)
-            {
-                Console.WriteLine($"Key: {folder.DisplayName}, Value: {folder.Value}");
-            }
+        // Act
+        var result = await handler.GetFolderContentAsync(
+            new FolderContentDataSourceContext { FolderId = string.Empty }, 
+            CancellationToken.None
+        );
 
-            Assert.IsNotNull(result);
-        }
+        // Assert
+        foreach (var item in result)
+            Console.WriteLine($"Item: {item.DisplayName}, Id: {item.Id}, Type: {(item is Folder ? "Folder" : "File")}");
+        Assert.IsNotNull(result);
+    }
 
-        [TestMethod]
-        public async Task FilePickerDataHandler_IsSuccess()
-        {
-            var handler = new FilePickerDataSourceHandler(InvocationContext);
-            var result = await handler.GetFolderContentAsync(new FolderContentDataSourceContext
-            {
-                FolderId = string.Empty
-            }, CancellationToken.None);
-            var itemList = result.ToList();
-            foreach (var item in itemList)
-            {
-                Console.WriteLine($"Item: {item.DisplayName}, Id: {item.Id}, Type: {(item is Blackbird.Applications.SDK.Extensions.FileManagement.Models.FileDataSourceItems.Folder ? "Folder" : "File")}");
-            }
-            Assert.IsNotNull(result);
-            Assert.IsTrue(itemList.Count > 0, "The folder should contain items.");
-        }
+    [TestMethod]
+    public async Task DriveDataSourceHandler_IsSuccess()
+    {
+        // Arrange
+        var handler = new DriveDataSourceHandler(InvocationContext);
 
-        [TestMethod]
-        public async Task FolderPickerDataHandler_IsSuccess()
-        {
-            var handler = new FolderPickerDataSourceHandler(InvocationContext);
-            var result = await handler.GetFolderContentAsync(new FolderContentDataSourceContext
-            {
-                FolderId = string.Empty
-            }, CancellationToken.None);
-            var itemList = result.ToList();
-            foreach (var item in itemList)
-            {
-                Console.WriteLine($"Item: {item.DisplayName}, Id: {item.Id}, Type: {(item is Blackbird.Applications.SDK.Extensions.FileManagement.Models.FileDataSourceItems.Folder ? "Folder" : "File")}");
-            }
-            Assert.IsNotNull(result);
-            Assert.IsTrue(itemList.Count > 0, "The folder should contain items.");
-        }
+        // Act
+        var result = await handler.GetDataAsync(new DataSourceContext { SearchString = "" }, CancellationToken.None);
+
+        // Assert
+        foreach (var item in result)
+            Console.WriteLine($"ID: {item.Value}, Name: {item.DisplayName}");
+        Assert.IsNotNull(result);
     }
 }

@@ -5,11 +5,11 @@ using Blackbird.Applications.SDK.Extensions.FileManagement.Models.FileDataSource
 
 namespace Apps.MicrosoftSharePoint.Models.Identifiers;
 
-public class FolderIdentifier
+public class ParentFolderIdentifier
 {
-    [Display("Folder ID", Description = "Enter the unique ID of the folder. For example: '01C7WXPSBPDJQQ2E2CTBFI5XXXXXXXXXX'.")]
+    [Display("Parent folder ID", Description = "Enter the unique ID of the folder. For example: '01C7WXPSBPDJQQ2E2CTBFI5XXXXXXXXXX'.")]
     [FileDataSource(typeof(FolderPickerDataSourceHandler))]
-    public string FolderId { get; set; }
+    public string ParentFolderId { get; set; }
 
     [Display("Drive ID")]
     [DataSource(typeof(DriveDataSourceHandler))]
