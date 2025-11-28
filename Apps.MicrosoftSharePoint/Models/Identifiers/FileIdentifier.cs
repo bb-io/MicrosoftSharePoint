@@ -1,7 +1,8 @@
 ﻿using Blackbird.Applications.Sdk.Common;
-using Apps.MicrosoftSharePoint.DataSourceHandlers;
+using Blackbird.Applications.Sdk.Common.Dynamic;
 using Blackbird.Applications.SDK.Blueprints.Interfaces.FileStorage;
 using Blackbird.Applications.SDK.Extensions.FileManagement.Models.FileDataSourceItems;
+using Apps.MicrosoftSharePoint.DataSourceHandlers;
 
 namespace Apps.MicrosoftSharePoint.Models.Identifiers;
 
@@ -12,6 +13,6 @@ public class FileIdentifier : IDownloadFileInput
     public string FileId { get; set; }
 
     [Display("Drive ID")]
-    [FileDataSource(typeof(DriveDataSourceHandler))]
+    [DataSource(typeof(DriveDataSourceHandler))]
     public string? DriveId { get; set; }
 }
