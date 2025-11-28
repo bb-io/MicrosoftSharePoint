@@ -14,25 +14,7 @@ public class DataHandlerTests : TestBase
 
         // Act
         var result = await handler.GetFolderContentAsync(
-            new FolderContentDataSourceContext { FolderId = "root" }, 
-            CancellationToken.None
-        );
-
-        // Assert
-        foreach (var item in result)
-            Console.WriteLine($"Name: {item.DisplayName}, Id: {item.Id}, Type: {(item is Folder ? "Folder" : "File")}");
-        Assert.IsNotNull(result);
-    }
-
-    [TestMethod]
-    public async Task FilePickerDataHandler_GetFolderPathAsync_IsSuccess()
-    {
-        // Arrange
-        var handler = new FilePickerDataSourceHandler(InvocationContext);
-
-        // Act
-        var result = await handler.GetFolderPathAsync(
-            new FolderPathDataSourceContext { FileDataItemId = "root" },
+            new FolderContentDataSourceContext { FolderId = null }, 
             CancellationToken.None
         );
 

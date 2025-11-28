@@ -7,22 +7,27 @@ using Blackbird.Applications.Sdk.Common.Invocation;
 using Blackbird.Applications.SDK.Extensions.FileManagement.Interfaces;
 using Blackbird.Applications.SDK.Extensions.FileManagement.Models.FileDataSourceItems;
 using File = Blackbird.Applications.SDK.Extensions.FileManagement.Models.FileDataSourceItems.File;
+using Blackbird.Applications.Sdk.Common.Exceptions;
 
 namespace Apps.MicrosoftSharePoint.DataSourceHandlers;
 
 public class FilePickerDataSourceHandler(InvocationContext invocationContext)
     : BaseInvocable(invocationContext), IAsyncFileDataSourceItemHandler
 {
-    private const string RootFolderDisplayName = "My files";
-
     public async Task<IEnumerable<FileDataItem>> GetFolderContentAsync(FolderContentDataSourceContext context, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrEmpty(context.FolderId))
+        try
         {
-            var drives = await GetDrives();
-            return drives.Value.Select(x =>
-                new Folder { Id = x.Id, DisplayName = x.Name, Date = x.LastModified, IsSelectable = false }
-            );
+            if (string.IsNullOrEmpty(context.FolderId))
+            {
+                var drives = await GetDrives();
+                return drives.Value.Select(x =>
+                    new Folder { Id = x.Id, DisplayName = x.Name, Date = x.LastModified, IsSelectable = false }
+                );
+            }
+        } catch (Exception ex) 
+        {
+            throw new PluginApplicationException(ex.Message);
         }
 
         var idParts = context.FolderId.Split('#');
@@ -42,7 +47,7 @@ public class FilePickerDataSourceHandler(InvocationContext invocationContext)
                 {
                     Id = $"{driveId}#{i.FileId}",
                     DisplayName = i.Name,
-                    Date = i.CreatedDateTime,
+                    Date = i.LastModifiedDateTime,
                     IsSelectable = false
                 });
             }
