@@ -63,58 +63,73 @@ public class FilePickerDataSourceHandler(InvocationContext invocationContext)
         }
         catch (Exception ex)
         {
-            InvocationContext.Logger?.LogError($"Sharepoint error Message: {ex.Message} {ex.InnerException}", null);
+            InvocationContext.Logger?.LogError(
+                $"SharePoint -> GetFolderContentAsync: {ex.Message} {ex.InnerException}", 
+                null
+            );
+            return null;
         }
     }
 
     public async Task<IEnumerable<FolderPathItem>> GetFolderPathAsync(FolderPathDataSourceContext context, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrEmpty(context.FileDataItemId))
-            return Enumerable.Empty<FolderPathItem>();
-
-        var path = new List<FolderPathItem>();
-        var idParts = context.FileDataItemId.Split('#');
-        var driveId = idParts[0];
-        var currentItemId = idParts.Length > 1 ? idParts[1] : null;
-
-        if (string.IsNullOrEmpty(currentItemId))
+        try
         {
-            var drive = await GetDriveById(driveId);
-            path.Add(new FolderPathItem { DisplayName = drive.Name, Id = driveId });
-        }
-        else
-        {
-            while (!string.IsNullOrEmpty(currentItemId))
+            if (string.IsNullOrEmpty(context.FileDataItemId))
+                return Enumerable.Empty<FolderPathItem>();
+
+            var path = new List<FolderPathItem>();
+            var idParts = context.FileDataItemId.Split('#');
+            var driveId = idParts[0];
+            var currentItemId = idParts.Length > 1 ? idParts[1] : null;
+
+            if (string.IsNullOrEmpty(currentItemId))
             {
-                var item = await GetItemInDrive(driveId, currentItemId);
-                if (item == null) break;
-
-                path.Add(new FolderPathItem
-                {
-                    Id = $"{driveId}#{item.FileId}",
-                    DisplayName = item.Name
-                });
-
-                if (item.ParentReference == null || (item.ParentReference.Path?.EndsWith("/root") == true))
-                {
-                    currentItemId = null;
-                }
-                else
-                {
-                    currentItemId = item.ParentReference.Id;
-                }
-            }
-
-            var drive = await GetDriveById(driveId);
-            if (drive != null)
-            {
+                var drive = await GetDriveById(driveId);
                 path.Add(new FolderPathItem { DisplayName = drive.Name, Id = driveId });
             }
+            else
+            {
+                while (!string.IsNullOrEmpty(currentItemId))
+                {
+                    var item = await GetItemInDrive(driveId, currentItemId);
+                    if (item == null) break;
+
+                    path.Add(new FolderPathItem
+                    {
+                        Id = $"{driveId}#{item.FileId}",
+                        DisplayName = item.Name
+                    });
+
+                    if (item.ParentReference == null || (item.ParentReference.Path?.EndsWith("/root") == true))
+                    {
+                        currentItemId = null;
+                    }
+                    else
+                    {
+                        currentItemId = item.ParentReference.Id;
+                    }
+                }
+
+                var drive = await GetDriveById(driveId);
+                if (drive != null)
+                {
+                    path.Add(new FolderPathItem { DisplayName = drive.Name, Id = driveId });
+                }
+            }
+
+            path.Reverse();
+
+            return path;
         }
-
-        path.Reverse();
-
-        return path;
+        catch (Exception ex)
+        {
+            InvocationContext.Logger?.LogError(
+                $"SharePoint -> GetFolderPathAsync: {ex.Message} {ex.InnerException}",
+                null
+            );
+            return null;
+        }
     }
 
     private async Task<List<FileMetadataDto>> ListItemsInDrive(string driveId, string? itemId)
