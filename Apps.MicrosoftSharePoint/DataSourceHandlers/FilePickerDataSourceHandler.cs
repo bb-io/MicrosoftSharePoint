@@ -1,14 +1,16 @@
 ﻿using RestSharp;
 using Apps.MicrosoftSharePoint.Dtos;
-using Apps.MicrosoftSharePoint.Models.Identifiers;
+using Apps.MicrosoftSharePoint.Models.Entities;
+using Apps.MicrosoftSharePoint.Models.Responses;
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Invocation;
 using Blackbird.Applications.SDK.Extensions.FileManagement.Interfaces;
 using Blackbird.Applications.SDK.Extensions.FileManagement.Models.FileDataSourceItems;
+using File = Blackbird.Applications.SDK.Extensions.FileManagement.Models.FileDataSourceItems.File;
 
 namespace Apps.MicrosoftSharePoint.DataSourceHandlers;
 
-public class FilePickerDataSourceHandler(InvocationContext invocationContext, [ActionParameter] FileIdentifier file) 
+public class FilePickerDataSourceHandler(InvocationContext invocationContext)
     : BaseInvocable(invocationContext), IAsyncFileDataSourceItemHandler
 {
     private const string RootId = "root";
@@ -16,19 +18,32 @@ public class FilePickerDataSourceHandler(InvocationContext invocationContext, [A
 
     public async Task<IEnumerable<FileDataItem>> GetFolderContentAsync(FolderContentDataSourceContext context, CancellationToken cancellationToken)
     {
-        var client = new SharePointBetaClient(InvocationContext.AuthenticationCredentialsProviders);
-        var folderId = string.IsNullOrEmpty(context?.FolderId) ? RootId : context.FolderId!;
-        var items = await ListItemsInFolderById(folderId);
+        var folderId = string.IsNullOrEmpty(context.FolderId) ? RootId : context.FolderId;
+
+        if (folderId == RootId)
+        {
+            var drives = await GetDrives();
+            return drives.Value.Select(x =>
+                new Folder { Id = x.Id, DisplayName = x.Name, Date = x.LastModified, IsSelectable = false }
+            );
+        }
+
+        var idParts = folderId.Split('#');
+        var driveId = idParts[0];
+        var parentItemId = idParts.Length > 1 ? idParts[1] : null;
+
+        var items = await ListItemsInDrive(driveId, parentItemId);
 
         var result = new List<FileDataItem>();
         foreach (var i in items)
         {
             var isFolder = string.IsNullOrEmpty(i.MimeType);
+
             if (isFolder)
             {
                 result.Add(new Folder
                 {
-                    Id = i.FileId,
+                    Id = $"{driveId}#{i.FileId}",
                     DisplayName = i.Name,
                     Date = i.CreatedDateTime,
                     IsSelectable = false
@@ -36,7 +51,7 @@ public class FilePickerDataSourceHandler(InvocationContext invocationContext, [A
             }
             else
             {
-                result.Add(new Blackbird.Applications.SDK.Extensions.FileManagement.Models.FileDataSourceItems.File
+                result.Add(new File
                 {
                     Id = i.FileId,
                     DisplayName = i.Name,
@@ -52,69 +67,70 @@ public class FilePickerDataSourceHandler(InvocationContext invocationContext, [A
 
     public async Task<IEnumerable<FolderPathItem>> GetFolderPathAsync(FolderPathDataSourceContext context, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrEmpty(context?.FileDataItemId))
+        if (string.IsNullOrEmpty(context?.FileDataItemId) || context.FileDataItemId == RootId)
             return new List<FolderPathItem> { new() { DisplayName = RootFolderDisplayName, Id = RootId } };
 
-        var result = new List<FolderPathItem>();
+        var path = new List<FolderPathItem>();
+        var idParts = context.FileDataItemId.Split('#');
+        var driveId = idParts[0];
+        var currentItemId = idParts.Length > 1 ? idParts[1] : null;
 
-        try
+        if (string.IsNullOrEmpty(currentItemId))
         {
-            var current = await GetFileMetadataById(context.FileDataItemId);
-            var parentId = current?.ParentReference?.Id;
-
-            while (!string.IsNullOrEmpty(parentId))
+            var drive = await GetDriveById(driveId);
+            path.Add(new FolderPathItem { DisplayName = drive.Name, Id = driveId });
+        }
+        else
+        {
+            while (!string.IsNullOrEmpty(currentItemId))
             {
-                var parent = await GetFileMetadataById(parentId!);
-                if (parent == null) break;
+                var item = await GetItemInDrive(driveId, currentItemId);
+                if (item == null) break;
 
-                result = result
-                    .Prepend(new FolderPathItem
-                    {
-                        DisplayName = parent.Name,
-                        Id = parent.FileId
-                    })
-                    .ToList();
+                path.Add(new FolderPathItem
+                {
+                    Id = $"{driveId}#{item.FileId}",
+                    DisplayName = item.Name
+                });
 
-                parentId = parent.ParentReference?.Id;
+                if (item.ParentReference == null || (item.ParentReference.Path?.EndsWith("/root") == true))
+                {
+                    currentItemId = null;
+                }
+                else
+                {
+                    currentItemId = item.ParentReference.Id;
+                }
             }
 
-            var root = result.FirstOrDefault();
-            if (root != null)
+            var drive = await GetDriveById(driveId);
+            if (drive != null)
             {
-                root.DisplayName = RootFolderDisplayName;
-                root.Id = RootId;
-            }
-            else
-            {
-                result.Add(new FolderPathItem { DisplayName = RootFolderDisplayName, Id = RootId });
+                path.Add(new FolderPathItem { DisplayName = drive.Name, Id = driveId });
             }
         }
-        catch
-        {
-            result.Clear();
-            result.Add(new FolderPathItem { DisplayName = RootFolderDisplayName, Id = RootId });
-        }
 
-        return result;
+        path.Add(new FolderPathItem { DisplayName = RootFolderDisplayName, Id = RootId });
+        path.Reverse();
+
+        return path;
     }
-
-    private async Task<List<FileMetadataDto>> ListItemsInFolderById(string folderId)
+    private async Task<List<FileMetadataDto>> ListItemsInDrive(string driveId, string? itemId)
     {
         var client = new SharePointBetaClient(InvocationContext.AuthenticationCredentialsProviders);
+
+        string endpoint = string.IsNullOrEmpty(itemId)
+            ? $"/drives/{driveId}/root/children"
+            : $"/drives/{driveId}/items/{itemId}/children";
+
         var items = new List<FileMetadataDto>();
-        
-        var drivePrefix = string.IsNullOrEmpty(file.DriveId)
-            ? "/drive"
-            : $"/drives/{file.DriveId}";
-        string? next = folderId == RootId
-            ? $"{drivePrefix}/root/children"
-            : $"{drivePrefix}/items/{folderId}/children";
+        string? next = endpoint;
 
         do
         {
             var request = Uri.IsWellFormedUriString(next, UriKind.Absolute)
-                ? new SharePointRequest(new Uri(next!).ToString(), Method.Get, InvocationContext.AuthenticationCredentialsProviders)
-                : new SharePointRequest(next!, Method.Get, InvocationContext.AuthenticationCredentialsProviders);
+               ? new SharePointRequest(new Uri(next!).ToString(), Method.Get, InvocationContext.AuthenticationCredentialsProviders)
+               : new SharePointRequest(next!, Method.Get, InvocationContext.AuthenticationCredentialsProviders);
 
             var page = await client.ExecuteWithHandling<ListWrapper<FileMetadataDto>>(request);
             items.AddRange(page?.Value ?? Array.Empty<FileMetadataDto>());
@@ -125,10 +141,27 @@ public class FilePickerDataSourceHandler(InvocationContext invocationContext, [A
         return items;
     }
 
-    private async Task<FileMetadataDto?> GetFileMetadataById(string id)
+    private async Task<FileMetadataDto?> GetItemInDrive(string driveId, string itemId)
     {
         var client = new SharePointBetaClient(InvocationContext.AuthenticationCredentialsProviders);
-        var request = new SharePointRequest($"/drive/items/{id}", Method.Get, InvocationContext.AuthenticationCredentialsProviders);
+        var request = new SharePointRequest($"/drives/{driveId}/items/{itemId}", Method.Get, InvocationContext.AuthenticationCredentialsProviders);
         return await client.ExecuteWithHandling<FileMetadataDto>(request);
+    }
+
+    private async Task<DriveEntity> GetDriveById(string driveId)
+    {
+        var client = new SharePointBetaClient(InvocationContext.AuthenticationCredentialsProviders);
+        var request = new SharePointRequest($"/drives/{driveId}", Method.Get, InvocationContext.AuthenticationCredentialsProviders);
+        return await client.ExecuteWithHandling<DriveEntity>(request);
+    }
+
+    private async Task<ListResponse<DriveEntity>> GetDrives()
+    {
+        var creds = InvocationContext.AuthenticationCredentialsProviders;
+        var siteId = creds.First(x => x.KeyName == "SiteId").Value;
+
+        var client = new SharePointClient();
+        var request = new SharePointRequest($"/sites/{siteId}/drives", Method.Get, creds);
+        return await client.ExecuteWithHandling<ListResponse<DriveEntity>>(request);
     }
 }

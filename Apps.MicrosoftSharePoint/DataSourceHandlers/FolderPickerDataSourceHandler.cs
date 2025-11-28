@@ -1,6 +1,5 @@
 ﻿using RestSharp;
 using Apps.MicrosoftSharePoint.Dtos;
-using Apps.MicrosoftSharePoint.Models.Identifiers;
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Invocation;
 using Blackbird.Applications.SDK.Extensions.FileManagement.Interfaces;
@@ -8,9 +7,7 @@ using Blackbird.Applications.SDK.Extensions.FileManagement.Models.FileDataSource
 
 namespace Apps.MicrosoftSharePoint.DataSourceHandlers;
 
-public class FolderPickerDataSourceHandler(
-    InvocationContext invocationContext,
-    [ActionParameter] FolderIdentifier folder) 
+public class FolderPickerDataSourceHandler(InvocationContext invocationContext) 
     : BaseInvocable(invocationContext), IAsyncFileDataSourceItemHandler
 {
     private const string RootId = "root";
@@ -92,9 +89,7 @@ public class FolderPickerDataSourceHandler(
         var client = new SharePointBetaClient(InvocationContext.AuthenticationCredentialsProviders);
         var items = new List<FileMetadataDto>();
 
-        var drivePrefix = string.IsNullOrEmpty(folder.DriveId)
-            ? "/drive"
-            : $"/drives/{folder.DriveId}";
+        var drivePrefix = "/drive";
         string? next = folderId == RootId
             ? $"{drivePrefix}/root/children"
             : $"{drivePrefix}/items/{folderId}/children";
