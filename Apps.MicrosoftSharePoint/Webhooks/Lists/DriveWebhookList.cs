@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using Apps.MicrosoftSharePoint.Dtos;
 using Apps.MicrosoftSharePoint.Extensions;
+using Apps.MicrosoftSharePoint.Models.Identifiers;
 using Apps.MicrosoftSharePoint.Models.Responses;
 using Apps.MicrosoftSharePoint.Webhooks.Handlers;
 using Apps.MicrosoftSharePoint.Webhooks.Inputs;
@@ -31,12 +32,12 @@ public class DriveWebhookList : BaseInvocable
     [Webhook("On files updated or created", typeof(DriveWebhookHandler), 
         Description = "This webhook is triggered when files are updated or created.")]
     public async Task<WebhookResponse<ListFilesResponse>> OnFilesUpdatedOrCreated(WebhookRequest request, 
-        [WebhookParameter] FolderInput folder, [WebhookParameter] ContentTypeInput contentType)
+        [WebhookParameter] FolderIdentifier folder, [WebhookParameter] ContentTypeInput contentType)
     {
         var payload = DeserializePayload(request);
         var changedFiles = GetChangedItems<FileMetadataDto>(payload.DeltaToken, out var newDeltaToken)
             .Where(item => item.MimeType != null
-                           && (folder.ParentFolderId == null || item.ParentReference.Id == folder.ParentFolderId)
+                           && (folder.FolderId == null || item.ParentReference.Id == folder.FolderId)
                            && (contentType.ContentType == null || item.MimeType == contentType.ContentType))
             .ToList();
         
@@ -58,13 +59,13 @@ public class DriveWebhookList : BaseInvocable
     [Webhook("On folders updated or created", typeof(DriveWebhookHandler), 
         Description = "This webhook is triggered when folders are updated or created.")]
     public async Task<WebhookResponse<ListFoldersResponse>> OnFoldersUpdatedOrCreated(WebhookRequest request, 
-        [WebhookParameter] FolderInput folder)
+        [WebhookParameter] FolderIdentifier folder)
     {
         var payload = DeserializePayload(request);
         var changedFolders = GetChangedItems<FolderMetadataDto>(payload.DeltaToken, out var newDeltaToken)
             .Where(item => item.ChildCount != null 
                            && item.ParentReference!.Id != null  
-                           && (folder.ParentFolderId == null || item.ParentReference.Id == folder.ParentFolderId))
+                           && (folder.FolderId == null || item.ParentReference.Id == folder.FolderId))
             .ToList();
         
         if (!changedFolders.Any())
