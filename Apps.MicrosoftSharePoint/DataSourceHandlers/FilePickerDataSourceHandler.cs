@@ -7,7 +7,6 @@ using Blackbird.Applications.Sdk.Common.Invocation;
 using Blackbird.Applications.SDK.Extensions.FileManagement.Interfaces;
 using Blackbird.Applications.SDK.Extensions.FileManagement.Models.FileDataSourceItems;
 using File = Blackbird.Applications.SDK.Extensions.FileManagement.Models.FileDataSourceItems.File;
-using Blackbird.Applications.Sdk.Common.Exceptions;
 
 namespace Apps.MicrosoftSharePoint.DataSourceHandlers;
 
@@ -25,46 +24,47 @@ public class FilePickerDataSourceHandler(InvocationContext invocationContext)
                     new Folder { Id = x.Id, DisplayName = x.Name, Date = x.LastModified, IsSelectable = false }
                 );
             }
-        } catch (Exception ex) 
-        {
-            throw new PluginApplicationException(ex.Message);
-        }
 
-        var idParts = context.FolderId.Split('#');
-        var driveId = idParts[0];
-        var parentItemId = idParts.Length > 1 ? idParts[1] : null;
+            var idParts = context.FolderId.Split('#');
+            var driveId = idParts[0];
+            var parentItemId = idParts.Length > 1 ? idParts[1] : null;
 
-        var items = await ListItemsInDrive(driveId, parentItemId);
+            var items = await ListItemsInDrive(driveId, parentItemId);
 
-        var result = new List<FileDataItem>();
-        foreach (var i in items)
-        {
-            var isFolder = string.IsNullOrEmpty(i.MimeType);
-
-            if (isFolder)
+            var result = new List<FileDataItem>();
+            foreach (var i in items)
             {
-                result.Add(new Folder
-                {
-                    Id = $"{driveId}#{i.FileId}",
-                    DisplayName = i.Name,
-                    Date = i.LastModifiedDateTime,
-                    IsSelectable = false
-                });
-            }
-            else
-            {
-                result.Add(new File
-                {
-                    Id = i.FileId,
-                    DisplayName = i.Name,
-                    Date = i.LastModifiedDateTime,
-                    Size = i.Size,
-                    IsSelectable = true
-                });
-            }
-        }
+                var isFolder = string.IsNullOrEmpty(i.MimeType);
 
-        return result;
+                if (isFolder)
+                {
+                    result.Add(new Folder
+                    {
+                        Id = $"{driveId}#{i.FileId}",
+                        DisplayName = i.Name,
+                        Date = i.LastModifiedDateTime,
+                        IsSelectable = false
+                    });
+                }
+                else
+                {
+                    result.Add(new File
+                    {
+                        Id = i.FileId,
+                        DisplayName = i.Name,
+                        Date = i.LastModifiedDateTime,
+                        Size = i.Size,
+                        IsSelectable = true
+                    });
+                }
+            }
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            InvocationContext.Logger?.LogError($"Sharepoint error Message: {ex.Message} {ex.InnerException}", null);
+        }
     }
 
     public async Task<IEnumerable<FolderPathItem>> GetFolderPathAsync(FolderPathDataSourceContext context, CancellationToken cancellationToken)
@@ -116,6 +116,7 @@ public class FilePickerDataSourceHandler(InvocationContext invocationContext)
 
         return path;
     }
+
     private async Task<List<FileMetadataDto>> ListItemsInDrive(string driveId, string? itemId)
     {
         var client = new SharePointBetaClient(InvocationContext.AuthenticationCredentialsProviders);
