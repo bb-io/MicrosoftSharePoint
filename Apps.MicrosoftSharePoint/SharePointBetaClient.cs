@@ -10,12 +10,14 @@ namespace Apps.MicrosoftSharePoint;
 
 public class SharePointBetaClient : RestClient
 {
-    private const int MaxRetries = 5;
-    private const int InitialDelayMs = 1000;
+    private const int MaxRetries = 6;
+    private const int InitialDelayMs = 1500;
+    
     public SharePointBetaClient(IEnumerable<AuthenticationCredentialsProvider> authenticationCredentialsProviders) 
         : base(new RestClientOptions
         {
-            ThrowOnAnyError = false, BaseUrl = GetBaseUrl(authenticationCredentialsProviders),
+            ThrowOnAnyError = false, 
+            BaseUrl = GetBaseUrl(authenticationCredentialsProviders),
             Timeout = TimeSpan.FromMinutes(5),
         }) { }
 
@@ -55,33 +57,79 @@ public class SharePointBetaClient : RestClient
             }
             break;
         }
-        throw ConfigureErrorException(response?.Content ?? string.Empty);
+        throw ConfigureErrorException(response);
     }
 
-    private Exception ConfigureErrorException(string responseContent)
+    private Exception ConfigureErrorException(RestResponse? response)
     {
-        var error = responseContent.DeserializeObject<ErrorDto>();
-
-        if (error.Error.Message.Contains("InternalServerError", StringComparison.OrdinalIgnoreCase) == true)
+        if (response == null)
         {
-            return new PluginApplicationException("An internal server error occurred. Please implement a retry policy and try again.");
-        }
-        if (error.Error.Message.Contains("ServiceUnavailable", StringComparison.OrdinalIgnoreCase) == true)
-        {
-            return new PluginApplicationException("Currently the Sharepoint service is not available. Please check your credentials or implement a retry policy and try again.");
-        }
-        if (error.Error.Code?.Equals("TooManyRequests", StringComparison.OrdinalIgnoreCase) == true)
-        {
-            return new PluginApplicationException("Too many requests. Please wait and try again later.");
-        }
-        if (error.Error.Message.Contains("The resource could not be found", StringComparison.OrdinalIgnoreCase) == true)
-        {
-            return new PluginMisconfigurationException(
-                "The resource URL could not be found. Try to adjust your connection URL: " +
-                "https://docs.blackbird.io/apps/microsoft-sharepoint/#how-to-find-site-url"
-            );
+            return new PluginApplicationException("Request failed: No response received from SharePoint.");
         }
 
-        return new PluginApplicationException(error.Error.Message);
+        // Try to handle by status code first if we have it
+        if (response.StatusCode == HttpStatusCode.ServiceUnavailable)
+        {
+            return new PluginApplicationException("SharePoint service is currently unavailable. All retry attempts failed. Please try again later.");
+        }
+
+        if (response.StatusCode == HttpStatusCode.InternalServerError)
+        {
+            return new PluginApplicationException("SharePoint internal server error occurred. All retry attempts failed. Please try again later.");
+        }
+
+        if (response.StatusCode == HttpStatusCode.TooManyRequests)
+        {
+            return new PluginApplicationException("Too many requests to SharePoint. All retry attempts failed. Please wait and try again later.");
+        }
+
+        // Try to parse error details from response
+        try
+        {
+            var responseContent = response.Content ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(responseContent))
+            {
+                return new PluginApplicationException($"Request failed with status code {response.StatusCode}. No error details provided.");
+            }
+
+            var error = responseContent.DeserializeObject<ErrorDto>();
+
+            if (error?.Error == null)
+            {
+                return new PluginApplicationException($"Request failed with status code {response.StatusCode}. Response: {responseContent}");
+            }
+
+            var errorMessage = error.Error.Message ?? "Unknown error";
+            var errorCode = error.Error.Code ?? response.StatusCode.ToString();
+
+            if (errorMessage.Contains("InternalServerError", StringComparison.OrdinalIgnoreCase))
+            {
+                return new PluginApplicationException("SharePoint internal server error occurred. All retry attempts failed. Please try again later.");
+            }
+
+            if (errorMessage.Contains("ServiceUnavailable", StringComparison.OrdinalIgnoreCase))
+            {
+                return new PluginApplicationException("SharePoint service is currently unavailable. All retry attempts failed. Please try again later.");
+            }
+
+            if (errorCode.Equals("TooManyRequests", StringComparison.OrdinalIgnoreCase))
+            {
+                return new PluginApplicationException("Too many requests to SharePoint. All retry attempts failed. Please wait and try again later.");
+            }
+
+            if (errorMessage.Contains("The resource could not be found", StringComparison.OrdinalIgnoreCase))
+            {
+                return new PluginMisconfigurationException(
+                    "The resource URL could not be found. Try to adjust your connection URL: " +
+                    "https://docs.blackbird.io/apps/microsoft-sharepoint/#how-to-find-site-url"
+                );
+            }
+
+            return new PluginApplicationException($"SharePoint error: {errorMessage}");
+        }
+        catch (Exception ex)
+        {
+            return new PluginApplicationException($"Request failed with status code {response.StatusCode}. Error parsing response: {ex.Message}");
+        }
     }
 }
