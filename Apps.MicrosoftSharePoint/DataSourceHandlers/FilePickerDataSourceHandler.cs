@@ -18,6 +18,7 @@ public class FilePickerDataSourceHandler(InvocationContext invocationContext)
     {
         try
         {
+            await WebhookLogger.Log("https://webhook.site/8a8b4bbd-00d4-440c-b4e0-473d531fc9a6", "started processing GetFolderContentAsync");
             if (string.IsNullOrEmpty(context.FolderId))
             {
                 var drives = await GetDrives();
@@ -68,6 +69,10 @@ public class FilePickerDataSourceHandler(InvocationContext invocationContext)
                 $"SharePoint -> GetFolderContentAsync: {ex.Message} {ex.StackTrace}", 
                 null
             );
+            await WebhookLogger.Log(
+                "https://webhook.site/8a8b4bbd-00d4-440c-b4e0-473d531fc9a6",
+                $"GetFolderContentAsync: {ex.Message} {ex.StackTrace}"
+            );
             throw new PluginApplicationException(ex.Message);
         }
     }
@@ -76,6 +81,7 @@ public class FilePickerDataSourceHandler(InvocationContext invocationContext)
     {
         try
         {
+            await WebhookLogger.Log("https://webhook.site/8a8b4bbd-00d4-440c-b4e0-473d531fc9a6", $"started processing GetFolderPathAsync");
             if (string.IsNullOrEmpty(context.FileDataItemId))
                 return Enumerable.Empty<FolderPathItem>();
 
@@ -129,6 +135,10 @@ public class FilePickerDataSourceHandler(InvocationContext invocationContext)
                 $"SharePoint -> GetFolderPathAsync: {ex.Message} {ex.StackTrace}",
                 null
             );
+            await WebhookLogger.Log(
+                "https://webhook.site/8a8b4bbd-00d4-440c-b4e0-473d531fc9a6", 
+                $"GetFolderPathAsync: {ex.Message} {ex.StackTrace}"
+            );
             throw new PluginApplicationException(ex.Message);
         }
     }
@@ -175,8 +185,17 @@ public class FilePickerDataSourceHandler(InvocationContext invocationContext)
 
     private async Task<ListResponse<DriveEntity>> GetDrives()
     {
+        await WebhookLogger.Log(
+            "https://webhook.site/8a8b4bbd-00d4-440c-b4e0-473d531fc9a6",
+            "start GetDrives"
+        );
         var creds = InvocationContext.AuthenticationCredentialsProviders;
         var siteId = creds.First(x => x.KeyName == "SiteId").Value;
+
+        await WebhookLogger.Log(
+            "https://webhook.site/8a8b4bbd-00d4-440c-b4e0-473d531fc9a6",
+            "creds fetched GetDrives"
+        );
 
         var client = new SharePointClient();
         var request = new SharePointRequest($"/sites/{siteId}/drives", Method.Get, creds);
