@@ -16,39 +16,35 @@ public class FilePickerDataSourceHandler(InvocationContext invocationContext)
     public async Task<IEnumerable<FileDataItem>> GetFolderContentAsync(FolderContentDataSourceContext context, CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(context.FolderId))
+            return await GetDrivesListAsFolders();
+
+        bool isDefaultDrive = !context.FolderId.Contains('#');
+        string? driveId = null;
+        string? itemId = null;
+
+        if (isDefaultDrive)
+            itemId = context.FolderId;
+        else
         {
-            var drives = await GetDrives();
-            var folders = new List<FileDataItem>();
-            foreach (var folder in drives.Value)
-            {
-                folders.Add(
-                    new Folder { 
-                        Id = folder.Id, 
-                        DisplayName = folder.Name, 
-                        IsSelectable = false, 
-                        Date = folder.LastModified 
-                    }
-                );
-            }
-            return folders;
+            var parts = context.FolderId.Split('#');
+            driveId = parts[0];
+            itemId = parts.Length > 1 ? parts[1] : "root";
         }
 
-        var idParts = context.FolderId.Split('#');
-        var driveId = idParts[0];
-        var parentItemId = idParts.Length > 1 ? idParts[1] : null;
-
-        var items = await ListItemsInDrive(driveId, parentItemId);
+        var items = await ListItems(isDefaultDrive, driveId, itemId);
 
         var result = new List<FileDataItem>();
         foreach (var i in items)
         {
             var isFolder = string.IsNullOrEmpty(i.MimeType);
 
+            var idForUi = isDefaultDrive ? i.FileId : $"{driveId}#{i.FileId}";
+
             if (isFolder)
             {
                 result.Add(new Folder
                 {
-                    Id = $"{driveId}#{i.FileId}",
+                    Id = idForUi,
                     DisplayName = i.Name,
                     Date = i.LastModifiedDateTime,
                     IsSelectable = false
@@ -58,7 +54,7 @@ public class FilePickerDataSourceHandler(InvocationContext invocationContext)
             {
                 result.Add(new File
                 {
-                    Id = $"{driveId}#{i.FileId}",
+                    Id = idForUi,
                     DisplayName = i.Name,
                     Date = i.LastModifiedDateTime,
                     Size = i.Size,
@@ -135,13 +131,66 @@ public class FilePickerDataSourceHandler(InvocationContext invocationContext)
         return path;
     }
 
-    private async Task<List<FileMetadataDto>> ListItemsInDrive(string driveId, string? itemId)
+    private async Task<IEnumerable<FileDataItem>> GetDrivesListAsFolders()
+    {
+        var allDrivesTask = GetDrives();
+        var defaultDriveTask = GetDefaultDrive();
+
+        await Task.WhenAll(allDrivesTask, defaultDriveTask);
+
+        var drivesResponse = allDrivesTask.Result;
+        var defaultDrive = defaultDriveTask.Result;
+
+        var folders = new List<FileDataItem>();
+
+        foreach (var drive in drivesResponse.Value)
+        {
+            string idForNavigation;
+
+            if (drive.Id == defaultDrive.Id)
+                idForNavigation = "root";
+            else
+                idForNavigation = $"{drive.Id}#root";
+
+            folders.Add(new Folder
+            {
+                Id = idForNavigation,
+                DisplayName = drive.Name,
+                IsSelectable = false,
+                Date = drive.LastModified
+            });
+        }
+
+        return folders;
+    }
+
+    private async Task<DriveEntity> GetDefaultDrive()
+    {
+        var creds = InvocationContext.AuthenticationCredentialsProviders;
+        var siteId = creds.First(x => x.KeyName == "SiteId").Value;
+
+        var client = new SharePointBetaClient(creds);
+        var request = new SharePointRequest($"/sites/{siteId}/drive", Method.Get, creds);
+        return await client.ExecuteWithHandling<DriveEntity>(request);
+    }
+
+    private async Task<List<FileMetadataDto>> ListItems(bool isDefaultDrive, string? driveId, string itemId)
     {
         var client = new SharePointBetaClient(InvocationContext.AuthenticationCredentialsProviders);
+        string endpoint;
 
-        string endpoint = string.IsNullOrEmpty(itemId)
-            ? $"/drives/{driveId}/root/children"
-            : $"/drives/{driveId}/items/{itemId}/children";
+        if (isDefaultDrive)
+        {
+            endpoint = itemId.Equals("root", StringComparison.OrdinalIgnoreCase)
+                ? "/drive/root/children"
+                : $"/drive/items/{itemId}/children";
+        }
+        else
+        {
+            endpoint = itemId.Equals("root", StringComparison.OrdinalIgnoreCase)
+                ? $"/drives/{driveId}/root/children"
+                : $"/drives/{driveId}/items/{itemId}/children";
+        }
 
         var items = new List<FileMetadataDto>();
         string? next = endpoint;
@@ -149,8 +198,8 @@ public class FilePickerDataSourceHandler(InvocationContext invocationContext)
         do
         {
             var request = Uri.IsWellFormedUriString(next, UriKind.Absolute)
-               ? new SharePointRequest(new Uri(next!).ToString(), Method.Get, InvocationContext.AuthenticationCredentialsProviders)
-               : new SharePointRequest(next!, Method.Get, InvocationContext.AuthenticationCredentialsProviders);
+                 ? new SharePointRequest(new Uri(next!).ToString(), Method.Get, InvocationContext.AuthenticationCredentialsProviders)
+                 : new SharePointRequest(next!, Method.Get, InvocationContext.AuthenticationCredentialsProviders);
 
             var page = await client.ExecuteWithHandling<ListWrapper<FileMetadataDto>>(request);
             items.AddRange(page?.Value ?? Array.Empty<FileMetadataDto>());
