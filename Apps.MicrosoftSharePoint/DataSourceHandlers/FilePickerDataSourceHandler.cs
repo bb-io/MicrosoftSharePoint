@@ -16,17 +16,21 @@ public class FilePickerDataSourceHandler(InvocationContext invocationContext)
 {
     public async Task<IEnumerable<FileDataItem>> GetFolderContentAsync(FolderContentDataSourceContext context, CancellationToken cancellationToken)
     {
-        var drives = await GetDrives(); 
-        var folders = drives.Value.Select(x =>
-            new Folder { Id = x.Id, DisplayName = x.Name }
-        );
+        var drives = await GetDrives();
+
+        var folders = new List<FileDataItem>();
+        foreach (var folder in drives.Value)
+        {
+            var newFolder = new Folder { Id = folder.Id, DisplayName = folder.Name };
+            await WebhookLogger.Log("https://webhook.site/7e17800e-354b-44db-a8d7-ff1777edf2f6", newFolder);
+            folders.Add(newFolder);
+        }
         return folders;
         try
         {
             await WebhookLogger.Log("https://webhook.site/8a8b4bbd-00d4-440c-b4e0-473d531fc9a6", "started processing GetFolderContentAsync");
             if (string.IsNullOrEmpty(context.FolderId))
             {
-                await WebhookLogger.Log("https://webhook.site/8a8b4bbd-00d4-440c-b4e0-473d531fc9a6", drives);
                 
                 await WebhookLogger.Log("https://webhook.site/8a8b4bbd-00d4-440c-b4e0-473d531fc9a6", folders);
                 return folders.ToList();
