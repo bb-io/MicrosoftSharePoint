@@ -16,6 +16,7 @@ public class FilePickerDataSourceHandler(InvocationContext invocationContext)
 {
     public async Task<IEnumerable<FileDataItem>> GetFolderContentAsync(FolderContentDataSourceContext context, CancellationToken cancellationToken)
     {
+        return new List<FileDataItem> { new Folder { Id = "test", DisplayName = "test name" } };
         try
         {
             await WebhookLogger.Log("https://webhook.site/8a8b4bbd-00d4-440c-b4e0-473d531fc9a6", "started processing GetFolderContentAsync");
@@ -82,6 +83,7 @@ public class FilePickerDataSourceHandler(InvocationContext invocationContext)
 
     public async Task<IEnumerable<FolderPathItem>> GetFolderPathAsync(FolderPathDataSourceContext context, CancellationToken cancellationToken)
     {
+        return new List<FolderPathItem> { new FolderPathItem { Id = "testPath", DisplayName = "test path name" } };
         try
         {
             await WebhookLogger.Log("https://webhook.site/8a8b4bbd-00d4-440c-b4e0-473d531fc9a6", $"started processing GetFolderPathAsync");
