@@ -18,9 +18,9 @@ public class FilePickerDataSourceHandler(InvocationContext invocationContext)
     {
         var drives = await GetDrives(); 
         var folders = drives.Value.Select(x =>
-            new Folder { Id = Guid.NewGuid().ToString(), DisplayName = "TEST" }
+            new Folder { Id = x.Id, DisplayName = x.Name }
         );
-        return new List<FileDataItem> { new Folder { Id = "test", DisplayName = "test name" } };
+        return folders;
         try
         {
             await WebhookLogger.Log("https://webhook.site/8a8b4bbd-00d4-440c-b4e0-473d531fc9a6", "started processing GetFolderContentAsync");
