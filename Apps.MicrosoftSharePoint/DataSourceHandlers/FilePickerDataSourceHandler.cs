@@ -24,7 +24,7 @@ public class FilePickerDataSourceHandler(InvocationContext invocationContext)
                 var drives = await GetDrives();
                 await WebhookLogger.Log("https://webhook.site/8a8b4bbd-00d4-440c-b4e0-473d531fc9a6", drives);
                 var folders = drives.Value.Select(x =>
-                    new Folder { Id = x.Id, DisplayName = x.Name, Date = x.LastModified, IsSelectable = false }
+                    new Folder { Id = Guid.NewGuid().ToString(), DisplayName = "TEST" }
                 );
                 await WebhookLogger.Log("https://webhook.site/8a8b4bbd-00d4-440c-b4e0-473d531fc9a6", folders);
                 return folders.ToList();
@@ -45,7 +45,7 @@ public class FilePickerDataSourceHandler(InvocationContext invocationContext)
                 {
                     result.Add(new Folder
                     {
-                        Id = $"{driveId}#{i.FileId}",
+                        Id = i.FileId,
                         DisplayName = i.Name,
                         Date = i.LastModifiedDateTime,
                         IsSelectable = false
