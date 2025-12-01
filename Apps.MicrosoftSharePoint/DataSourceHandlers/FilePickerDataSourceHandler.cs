@@ -73,7 +73,7 @@ public class FilePickerDataSourceHandler(InvocationContext invocationContext)
     public async Task<IEnumerable<FolderPathItem>> GetFolderPathAsync(FolderPathDataSourceContext context, CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(context.FileDataItemId))
-            return Enumerable.Empty<FolderPathItem>();
+            return [];
 
         var path = new List<FolderPathItem>();
         var idParts = context.FileDataItemId.Split('#');
@@ -87,36 +87,43 @@ public class FilePickerDataSourceHandler(InvocationContext invocationContext)
         }
         else
         {
-            while (!string.IsNullOrEmpty(currentItemId))
+            var firstItem = await GetItemInDrive(driveId, currentItemId);
+            if (firstItem != null)
             {
-                var item = await GetItemInDrive(driveId, currentItemId);
-                if (item == null) break;
+                if (Path.HasExtension(firstItem.Name))
+                    currentItemId = firstItem.ParentReference?.Id;
 
-                path.Add(new FolderPathItem
-                {
-                    Id = $"{driveId}#{item.FileId}",
-                    DisplayName = item.Name
-                });
-
-                if (item.ParentReference == null || (item.ParentReference.Path?.EndsWith("/root") == true))
-                {
-                    currentItemId = null;
-                }
                 else
                 {
-                    currentItemId = item.ParentReference.Id;
+                    path.Add(new FolderPathItem
+                    {
+                        Id = $"{driveId}#{firstItem.FileId}",
+                        DisplayName = firstItem.Name
+                    });
+                    currentItemId = firstItem.ParentReference?.Id;
+                }
+
+                while (!string.IsNullOrEmpty(currentItemId))
+                {
+                    var item = await GetItemInDrive(driveId, currentItemId);
+                    if (item == null) break;
+
+                    path.Add(new FolderPathItem
+                    {
+                        Id = $"{driveId}#{item.FileId}",
+                        DisplayName = item.Name
+                    });
+
+                    currentItemId = item.ParentReference?.Id;
                 }
             }
 
             var drive = await GetDriveById(driveId);
             if (drive != null)
-            {
                 path.Add(new FolderPathItem { DisplayName = drive.Name, Id = driveId });
-            }
         }
 
         path.Reverse();
-
         return path;
     }
 
