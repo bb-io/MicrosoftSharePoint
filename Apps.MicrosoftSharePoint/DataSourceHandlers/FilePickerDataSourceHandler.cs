@@ -72,27 +72,37 @@ public class FilePickerDataSourceHandler(InvocationContext invocationContext)
             return [];
 
         var path = new List<FolderPathItem>();
-        var idParts = context.FileDataItemId.Split('#');
-        var driveId = idParts[0];
-        var currentItemId = idParts.Length > 1 ? idParts[1] : null;
 
-        if (string.IsNullOrEmpty(currentItemId))
+        bool isDefaultDriveMode = !context.FileDataItemId.Contains('#');
+        string driveId;
+        string currentItemId;
+
+        if (isDefaultDriveMode)
         {
-            var drive = await GetDriveById(driveId);
-            path.Add(new FolderPathItem { DisplayName = drive.Name, Id = driveId });
+            var defaultDrive = await GetDefaultDrive();
+            driveId = defaultDrive.Id;
+            currentItemId = context.FileDataItemId;
         }
         else
+        {
+            var idParts = context.FileDataItemId.Split('#');
+            driveId = idParts[0];
+            currentItemId = idParts.Length > 1 ? idParts[1] : "root";
+        }
+
+        if (!string.IsNullOrEmpty(currentItemId) && !currentItemId.Equals("root", StringComparison.OrdinalIgnoreCase))
         {
             var firstItem = await GetItemInDrive(driveId, currentItemId);
 
             if (firstItem != null)
             {
-                bool isFile = Path.HasExtension(firstItem.Name);
+                bool isFile = !string.IsNullOrEmpty(firstItem.MimeType);
+
                 if (!isFile)
                 {
                     path.Add(new FolderPathItem
                     {
-                        Id = $"{driveId}#{firstItem.FileId}",
+                        Id = isDefaultDriveMode ? firstItem.FileId : $"{driveId}#{firstItem.FileId}",
                         DisplayName = firstItem.Name
                     });
                 }
@@ -104,25 +114,26 @@ public class FilePickerDataSourceHandler(InvocationContext invocationContext)
                     var item = await GetItemInDrive(driveId, currentItemId);
                     if (item == null) break;
 
-                    bool isRootFolder = item.Name.Equals("root", StringComparison.OrdinalIgnoreCase) 
-                        || item.ParentReference == null;
+                    bool isRootFolder = item.Name.Equals("root", StringComparison.OrdinalIgnoreCase)
+                                        || item.ParentReference == null;
 
-                    if (!isRootFolder)
+                    if (isRootFolder) break;
+
+                    path.Add(new FolderPathItem
                     {
-                        path.Add(new FolderPathItem
-                        {
-                            Id = $"{driveId}#{item.FileId}",
-                            DisplayName = item.Name
-                        });
-                    }
+                        Id = isDefaultDriveMode ? item.FileId : $"{driveId}#{item.FileId}",
+                        DisplayName = item.Name
+                    });
 
                     currentItemId = item.ParentReference?.Id;
                 }
             }
-
-            var drive = await GetDriveById(driveId);
-            if (drive != null)
-                path.Add(new FolderPathItem { DisplayName = drive.Name, Id = driveId });
+        }
+        var drive = await GetDriveById(driveId);
+        if (drive != null)
+        {
+            string driveNodeId = isDefaultDriveMode ? "root" : $"{driveId}#root";
+            path.Add(new FolderPathItem { DisplayName = drive.Name, Id = driveNodeId });
         }
 
         path.Add(new FolderPathItem { DisplayName = "Home", Id = string.Empty });
