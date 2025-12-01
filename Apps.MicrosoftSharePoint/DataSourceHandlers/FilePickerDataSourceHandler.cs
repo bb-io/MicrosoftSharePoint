@@ -88,31 +88,37 @@ public class FilePickerDataSourceHandler(InvocationContext invocationContext)
         else
         {
             var firstItem = await GetItemInDrive(driveId, currentItemId);
+
             if (firstItem != null)
             {
-                if (Path.HasExtension(firstItem.Name))
-                    currentItemId = firstItem.ParentReference?.Id;
-
-                else
+                bool isFile = Path.HasExtension(firstItem.Name);
+                if (!isFile)
                 {
                     path.Add(new FolderPathItem
                     {
                         Id = $"{driveId}#{firstItem.FileId}",
                         DisplayName = firstItem.Name
                     });
-                    currentItemId = firstItem.ParentReference?.Id;
                 }
+
+                currentItemId = firstItem.ParentReference?.Id;
 
                 while (!string.IsNullOrEmpty(currentItemId))
                 {
                     var item = await GetItemInDrive(driveId, currentItemId);
                     if (item == null) break;
 
-                    path.Add(new FolderPathItem
+                    bool isRootFolder = item.Name.Equals("root", StringComparison.OrdinalIgnoreCase) 
+                        || item.ParentReference == null;
+
+                    if (!isRootFolder)
                     {
-                        Id = $"{driveId}#{item.FileId}",
-                        DisplayName = item.Name
-                    });
+                        path.Add(new FolderPathItem
+                        {
+                            Id = $"{driveId}#{item.FileId}",
+                            DisplayName = item.Name
+                        });
+                    }
 
                     currentItemId = item.ParentReference?.Id;
                 }
@@ -122,6 +128,8 @@ public class FilePickerDataSourceHandler(InvocationContext invocationContext)
             if (drive != null)
                 path.Add(new FolderPathItem { DisplayName = drive.Name, Id = driveId });
         }
+
+        path.Add(new FolderPathItem { DisplayName = "Home", Id = string.Empty });
 
         path.Reverse();
         return path;
