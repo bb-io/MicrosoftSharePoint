@@ -1,12 +1,9 @@
-﻿using Blackbird.Applications.Sdk.Common;
-using Blackbird.Applications.Sdk.Common.Dynamic;
-using Blackbird.Applications.Sdk.Common.Invocation;
+﻿using Blackbird.Applications.Sdk.Common.Dynamic;
 using Blackbird.Applications.Sdk.Common.Dictionaries;
 
 namespace Apps.MicrosoftSharePoint.DataSourceHandlers;
 
-public class ConflictBehaviorDataSourceHandler(InvocationContext invocationContext) 
-    : BaseInvocable(invocationContext), IStaticDataSourceItemHandler
+public class ConflictBehaviorDataSourceHandler : IStaticDataSourceItemHandler
 {
     public IEnumerable<DataSourceItem> GetData()
     {
