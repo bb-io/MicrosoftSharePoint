@@ -18,7 +18,7 @@ public class BaseFileFolderPicker(InvocationContext invocationContext) : BaseInv
         bool foldersAreSelectable)
     {
         if (string.IsNullOrEmpty(folderId))
-            return await GetDrivesListAsFolders();
+            return await GetDrivesListAsFolders(foldersAreSelectable);
 
         var location = ItemIdParser.Parse(folderId);
 
@@ -163,7 +163,7 @@ public class BaseFileFolderPicker(InvocationContext invocationContext) : BaseInv
         return items;
     }
 
-    private async Task<IEnumerable<FileDataItem>> GetDrivesListAsFolders()
+    private async Task<IEnumerable<FileDataItem>> GetDrivesListAsFolders(bool foldersAreSelectable)
     {
         var allDrivesTask = GetDrives();
         var defaultDriveTask = GetDefaultDrive();
@@ -182,7 +182,7 @@ public class BaseFileFolderPicker(InvocationContext invocationContext) : BaseInv
             {
                 Id = idForNavigation,
                 DisplayName = drive.Name,
-                IsSelectable = false,
+                IsSelectable = foldersAreSelectable,
                 Date = drive.LastModified
             });
         }
