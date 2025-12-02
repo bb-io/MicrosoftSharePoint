@@ -101,22 +101,30 @@ public class DriveActions : BaseInvocable
 
     [BlueprintActionDefinition(BlueprintAction.UploadFile)]
     [Action("Upload file", Description = "Upload a file to a parent folder.")]
-    public async Task<FileMetadataDto> UploadFileInFolderById([ActionParameter] ParentFolderIdentifier folderIdentifier,
+    public async Task<FileMetadataDto> UploadFileInFolderById(
+        [ActionParameter] ParentFolderIdentifier folderIdentifier,
         [ActionParameter] UploadFileRequest input)
     {
         if (string.IsNullOrEmpty(folderIdentifier.ParentFolderId))
-        {
-            throw new PluginMisconfigurationException("Parent folder ID cannot be empty. Please provide a valid folder ID.");
-        }
+            throw new PluginMisconfigurationException("Parent folder ID cannot be empty.");
 
-        if (folderIdentifier.ParentFolderId.StartsWith("/"))
-        {
-            throw new PluginMisconfigurationException("Incorrect parent folder ID. Please provide a valid folder ID, such as '01C7WXPSBPDJQQ2E2CTBFI5XXXXXXXXXX'.");
-        }
-        
-        if(input.File == null || input.File?.Name == null)
-        {
+        if (input.File == null || input.File?.Name == null)
             throw new PluginMisconfigurationException("File is null. Please provide a valid file.");
+
+        var location = ItemIdParser.Parse(folderIdentifier.ParentFolderId);
+
+        string baseEndpoint;
+        if (location.IsDefaultDrive)
+        {
+            baseEndpoint = location.ItemId.Equals("root", StringComparison.OrdinalIgnoreCase)
+                ? "/drive/root"
+                : $"/drive/items/{location.ItemId}";
+        }
+        else
+        {
+            baseEndpoint = location.ItemId.Equals("root", StringComparison.OrdinalIgnoreCase)
+                ? $"/drives/{location.DriveId}/root"
+                : $"/drives/{location.DriveId}/items/{location.ItemId}";
         }
 
         const int fourMegabytesInBytes = 4194304;
@@ -127,31 +135,36 @@ public class DriveActions : BaseInvocable
             ? MediaTypeNames.Text.Plain
             : input.File.ContentType;
         var fileMetadata = new FileMetadataDto();
-    
+
         if (fileSize < fourMegabytesInBytes)
         {
-            var uploadRequest = new SharePointRequest($".//drive/items/{folderIdentifier.ParentFolderId}:/{input.File.Name}:" +
-                                                               $"/content?@microsoft.graph.conflictBehavior={input.ConflictBehavior}",
-                Method.Put, _authenticationCredentialsProviders);
+            var url = $"{baseEndpoint}:/{input.File.Name}:/content?@microsoft.graph.conflictBehavior={input.ConflictBehavior}";
+
+            var uploadRequest = new SharePointRequest(url, Method.Put, _authenticationCredentialsProviders);
             uploadRequest.AddParameter(contentType, fileBytes, ParameterType.RequestBody);
+
             fileMetadata = await _client.ExecuteWithHandling<FileMetadataDto>(uploadRequest);
         }
         else
         {
             const int chunkSize = 3932160;
-    
+
+            var createSessionUrl = $"{baseEndpoint}:/{input.File.Name}:/createUploadSession";
             var createUploadSessionRequest = new SharePointRequest(
-                $".//drive/items/{folderIdentifier.ParentFolderId}:/{input.File.Name}:/createUploadSession", Method.Post,
-                _authenticationCredentialsProviders);
+                createSessionUrl, 
+                Method.Post, 
+                _authenticationCredentialsProviders
+            );
+
             createUploadSessionRequest.AddJsonBody($@"
-                {{
-                    ""deferCommit"": false,
-                    ""item"": {{
-                        ""@microsoft.graph.conflictBehavior"": ""{input.ConflictBehavior}"",
-                        ""name"": ""{input.File.Name}""
-                    }}
-                }}");
-    
+            {{
+                ""deferCommit"": false,
+                ""item"": {{
+                    ""@microsoft.graph.conflictBehavior"": ""{input.ConflictBehavior}"",
+                    ""name"": ""{input.File.Name}""
+                }}
+            }}");
+
             var resumableUploadResult = await _client.ExecuteWithHandling<ResumableUploadDto>(createUploadSessionRequest);
             var uploadUrl = new Uri(resumableUploadResult.UploadUrl);
             var baseUrl = uploadUrl.GetLeftPart(UriPartial.Authority);
@@ -163,33 +176,31 @@ public class DriveActions : BaseInvocable
                 var startByte = int.Parse(resumableUploadResult.NextExpectedRanges.First().Split("-")[0]);
                 var buffer = fileBytes.Skip(startByte).Take(chunkSize).ToArray();
                 var bufferSize = buffer.Length;
-                
+
                 var uploadRequest = new RestRequest(endpoint, Method.Put);
                 uploadRequest.AddParameter(contentType, buffer, ParameterType.RequestBody);
                 uploadRequest.AddHeader("Content-Length", bufferSize);
                 uploadRequest.AddHeader("Content-Range", $"bytes {startByte}-{startByte + bufferSize - 1}/{fileSize}");
-                
+
                 var uploadResponse = await uploadClient.ExecuteWithHandling(uploadRequest);
                 var responseContent = uploadResponse.Content;
-                
+
                 resumableUploadResult = responseContent.DeserializeObject<ResumableUploadDto>();
-    
+
                 if (resumableUploadResult.NextExpectedRanges == null)
                     fileMetadata = responseContent.DeserializeObject<FileMetadataDto>();
-                
+
             } while (resumableUploadResult.NextExpectedRanges != null);
         }
-    
+
         return fileMetadata;
     }
-    
+
     [Action("Delete file", Description = "Delete file from site documents.")]
     public async Task DeleteFileById([ActionParameter] FileIdentifier fileIdentifier)
     {
         if (string.IsNullOrEmpty(fileIdentifier.FileId))
-        {
             throw new PluginMisconfigurationException("File ID cannot be empty. Please provide a valid file ID.");
-        }
 
         try
         {
@@ -197,18 +208,27 @@ public class DriveActions : BaseInvocable
         }
         catch (Exception ex)
         {
-            throw new PluginApplicationException($"Failed to verify file existence for ID {fileIdentifier.FileId}. Error: {ex.Message}");
+            throw new PluginApplicationException(
+                $"Failed to verify file existence for ID {fileIdentifier.FileId}. Error: {ex.Message}"
+            );
         }
 
-        var request = new SharePointRequest($"/drive/items/{fileIdentifier.FileId}", Method.Delete, 
-            _authenticationCredentialsProviders); 
+        var location = ItemIdParser.Parse(fileIdentifier.FileId);
+
+        string endpoint;
+        if (location.IsDefaultDrive)
+            endpoint = $"/drive/items/{location.ItemId}";
+        else
+            endpoint = $"/drives/{location.DriveId}/items/{location.ItemId}";
+
+        var request = new SharePointRequest(endpoint, Method.Delete, _authenticationCredentialsProviders);
         await _client.ExecuteWithHandling(request);
     }
-    
+
     #endregion
-    
+
     #region Folder actions
-    
+
     [Action("Get folder metadata", Description = "Retrieve the metadata for a folder.")]
     public async Task<FolderMetadataDto> GetFolderMetadataById([ActionParameter] FolderIdentifier folderIdentifier)
     {
