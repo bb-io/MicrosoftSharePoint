@@ -51,30 +51,64 @@ public class DriveActions : BaseInvocable
         return fileMetadata;
     }
 
-    // Check for updated files in every drive? Or track only root by default + add the DriveId input?
     [Action("List changed files", Description = "List all files that have been created or modified during past hours. " +
                                                 "If number of hours is not specified, files changed during past 24 " +
                                                 "hours are listed.")]
-    public async Task<ListFilesResponse> ListChangedFiles([ActionParameter] [Display("Hours")] int? hours)
+    public async Task<ListFilesResponse> ListChangedFiles(
+        [ActionParameter] FolderIdentifier folderIdentifier,
+        [ActionParameter][Display("Hours")] int? hours)
     {
-        var endpoint = "/drive/root/search(q='.')?$orderby=lastModifiedDateTime desc";
+        var location = ItemIdParser.Parse(folderIdentifier?.FolderId);
+
+        string baseEndpoint;
+        if (location.IsDefaultDrive)
+        {
+            baseEndpoint = location.ItemId.Equals("root", StringComparison.OrdinalIgnoreCase)
+                ? "/drive/root"
+                : $"/drive/items/{location.ItemId}";
+        }
+        else
+        {
+            baseEndpoint = location.ItemId.Equals("root", StringComparison.OrdinalIgnoreCase)
+                ? $"/drives/{location.DriveId}/root"
+                : $"/drives/{location.DriveId}/items/{location.ItemId}";
+        }
+
+        var endpoint = $"{baseEndpoint}/search(q='.')?$orderby=lastModifiedDateTime desc";
+
         var startDateTime = (DateTime.Now - TimeSpan.FromHours(hours ?? 24)).ToUniversalTime();
         var changedFiles = new List<FileMetadataDto>();
         int filesCount;
-    
+
         do
         {
-            var request = new SharePointRequest(endpoint, Method.Get, _authenticationCredentialsProviders);
+            var request = Uri.IsWellFormedUriString(endpoint, UriKind.Absolute)
+                ? new SharePointRequest(new Uri(endpoint).ToString(), Method.Get, _authenticationCredentialsProviders)
+                : new SharePointRequest(endpoint, Method.Get, _authenticationCredentialsProviders);
+
             var result = await _client.ExecuteWithHandling<ListWrapper<FileMetadataDto>>(request);
-            var files = result.Value.Where(item => item.MimeType != null && item.LastModifiedDateTime >= startDateTime);
-            filesCount = files.Count();
-            changedFiles.AddRange(files);
-            endpoint = result.ODataNextLink == null ? null : "/drive" + result.ODataNextLink?.Split("drive")[^1];
-        } while (endpoint != null && filesCount != 0);
-    
+
+            if (result?.Value != null)
+            {
+                var files = result.Value
+                    .Where(item => item.MimeType != null && item.LastModifiedDateTime >= startDateTime);
+
+                filesCount = files.Count();
+                changedFiles.AddRange(files);
+
+                endpoint = result.ODataNextLink;
+            }
+            else
+            {
+                filesCount = 0;
+                endpoint = null;
+            }
+
+        } while (!string.IsNullOrEmpty(endpoint) && filesCount != 0);
+
         return new ListFilesResponse { Files = changedFiles };
     }
-    
+
     [BlueprintActionDefinition(BlueprintAction.DownloadFile)]
     [Action("Download file", Description = "Download a file from site documents.")]
     public async Task<FileResponse> DownloadFileById([ActionParameter] FileIdentifier fileIdentifier)
@@ -232,83 +266,164 @@ public class DriveActions : BaseInvocable
     [Action("Get folder metadata", Description = "Retrieve the metadata for a folder.")]
     public async Task<FolderMetadataDto> GetFolderMetadataById([ActionParameter] FolderIdentifier folderIdentifier)
     {
-        var request = new SharePointRequest($"/drive/items/{folderIdentifier.FolderId}", Method.Get, 
-            _authenticationCredentialsProviders);
+        var location = ItemIdParser.Parse(folderIdentifier.FolderId);
+
+        string endpoint;
+        if (location.IsDefaultDrive)
+        {
+            endpoint = location.ItemId.Equals("root", StringComparison.OrdinalIgnoreCase)
+                ? "/drive/root"
+                : $"/drive/items/{location.ItemId}";
+        }
+        else
+        {
+            endpoint = location.ItemId.Equals("root", StringComparison.OrdinalIgnoreCase)
+                ? $"/drives/{location.DriveId}/root"
+                : $"/drives/{location.DriveId}/items/{location.ItemId}";
+        }
+
+        var request = new SharePointRequest(endpoint, Method.Get, _authenticationCredentialsProviders);
         var folderMetadata = await _client.ExecuteWithHandling<FolderMetadataDto>(request);
         return folderMetadata;
     }
 
     [Action("Search files", Description = "Retrieve metadata for files contained in a folder.")]
-    public async Task<ListFilesResponse> ListFilesInFolderById([ActionParameter] FolderIdentifier folderIdentifier,
-        [ActionParameter] filterExtensions extensions)
+    public async Task<ListFilesResponse> ListFilesInFolderById(
+        [ActionParameter] FolderIdentifier folderIdentifier,
+        [ActionParameter] FilterExtensions extensions)
     {
+        var location = ItemIdParser.Parse(folderIdentifier.FolderId);
+
+        string endpoint;
+        if (location.IsDefaultDrive)
+        {
+            endpoint = location.ItemId.Equals("root", StringComparison.OrdinalIgnoreCase)
+                ? "/drive/root/children"
+                : $"/drive/items/{location.ItemId}/children";
+        }
+        else
+        {
+            endpoint = location.ItemId.Equals("root", StringComparison.OrdinalIgnoreCase)
+                ? $"/drives/{location.DriveId}/root/children"
+                : $"/drives/{location.DriveId}/items/{location.ItemId}/children";
+        }
+
         var filesInFolder = new List<FileMetadataDto>();
-        var endpoint = $"/drive/items/{folderIdentifier.FolderId}/children";
-        
         do
         {
-            var request = new SharePointRequest(endpoint, Method.Get, _authenticationCredentialsProviders);
+            var request = Uri.IsWellFormedUriString(endpoint, UriKind.Absolute)
+                ? new SharePointRequest(new Uri(endpoint).ToString(), Method.Get, _authenticationCredentialsProviders)
+                : new SharePointRequest(endpoint, Method.Get, _authenticationCredentialsProviders);
+
             var result = await _client.ExecuteWithHandling<ListWrapper<FileMetadataDto>>(request);
-            var files = result.Value.Where(item => item.MimeType != null);
-            if (extensions != null && extensions?.Extensions?.Count() > 0)
+
+            if (result?.Value != null)
             {
-                files = files.Where(item =>
-                    !string.IsNullOrEmpty(item.Name) &&
-                    extensions.Extensions.Any(ext =>
-                        item.Name.EndsWith(ext, StringComparison.OrdinalIgnoreCase)));
+                var files = result.Value.Where(item => item.MimeType != null);
+
+                if (extensions != null && extensions.Extensions?.Any() == true)
+                {
+                    files = files.Where(item =>
+                        !string.IsNullOrEmpty(item.Name) &&
+                        extensions.Extensions.Any(ext =>
+                            item.Name.EndsWith(ext, StringComparison.OrdinalIgnoreCase)));
+                }
+
+                filesInFolder.AddRange(files);
             }
 
-            filesInFolder.AddRange(files);
-            endpoint = result.ODataNextLink == null ? null : "/drive" + result.ODataNextLink?.Split("drive")[^1];
-        } while (endpoint != null);
-        
+            endpoint = result?.ODataNextLink;
+
+        } while (!string.IsNullOrEmpty(endpoint));
+
         return new ListFilesResponse { Files = filesInFolder };
     }
-    
+
     [Action("Create folder", Description = "Create a new folder in parent folder.")]
     public async Task<FolderMetadataDto> CreateFolderInParentFolderWithId(
         [ActionParameter] ParentFolderIdentifier folderIdentifier,
-        [ActionParameter] [Display("Folder name")] string folderName)
+        [ActionParameter][Display("Folder name")] string folderName)
     {
-        var request = new SharePointRequest($"/drive/items/{folderIdentifier.ParentFolderId}/children", 
-            Method.Post, _authenticationCredentialsProviders);
+        var location = ItemIdParser.Parse(folderIdentifier.ParentFolderId);
+
+        string endpoint;
+        if (location.IsDefaultDrive)
+        {
+            endpoint = location.ItemId.Equals("root", StringComparison.OrdinalIgnoreCase)
+                ? "/drive/root/children"
+                : $"/drive/items/{location.ItemId}/children";
+        }
+        else
+        {
+            endpoint = location.ItemId.Equals("root", StringComparison.OrdinalIgnoreCase)
+                ? $"/drives/{location.DriveId}/root/children"
+                : $"/drives/{location.DriveId}/items/{location.ItemId}/children";
+        }
+
+        var request = new SharePointRequest(endpoint, Method.Post, _authenticationCredentialsProviders);
         request.AddJsonBody(new
         {
             Name = folderName.Trim(),
             Folder = new { }
         });
-    
+
         var folderMetadata = await _client.ExecuteWithHandling<FolderMetadataDto>(request);
         return folderMetadata;
     }
-    
+
     [Action("Delete folder", Description = "Delete a folder.")]
     public async Task DeleteFolderById([ActionParameter] FolderIdentifier folderIdentifier)
     {
-        var request = new SharePointRequest($"/drive/items/{folderIdentifier.FolderId}", Method.Delete, 
-            _authenticationCredentialsProviders); 
+        if (string.IsNullOrEmpty(folderIdentifier.FolderId))
+            throw new PluginMisconfigurationException("Folder ID cannot be empty.");
+
+        var location = ItemIdParser.Parse(folderIdentifier.FolderId);
+
+        string endpoint;
+        if (location.IsDefaultDrive)
+            endpoint = $"/drive/items/{location.ItemId}";
+        else
+            endpoint = $"/drives/{location.DriveId}/items/{location.ItemId}";
+
+        var request = new SharePointRequest(endpoint, Method.Delete, _authenticationCredentialsProviders);
         await _client.ExecuteWithHandling(request);
     }
 
-
     [Action("Find folder", Description = "Find a folder by name within a specified parent folder. Returns empty if not found.")]
     public async Task<FolderMetadataDto> FindFolderByName(
-    [ActionParameter] ParentFolderIdentifier parentFolderIdentifier,
-    [ActionParameter][Display("Folder name")] string folderName)
+        [ActionParameter] ParentFolderIdentifier parentFolderIdentifier,
+        [ActionParameter][Display("Folder name")] string folderName)
     {
         if (string.IsNullOrWhiteSpace(folderName))
-        {
             throw new PluginMisconfigurationException("Folder name cannot be empty.");
+
+        var location = ItemIdParser.Parse(parentFolderIdentifier.ParentFolderId);
+
+        string baseEndpoint;
+        if (location.IsDefaultDrive)
+        {
+            baseEndpoint = location.ItemId.Equals("root", StringComparison.OrdinalIgnoreCase)
+                ? "/drive/root"
+                : $"/drive/items/{location.ItemId}";
+        }
+        else
+        {
+            baseEndpoint = location.ItemId.Equals("root", StringComparison.OrdinalIgnoreCase)
+                ? $"/drives/{location.DriveId}/root"
+                : $"/drives/{location.DriveId}/items/{location.ItemId}";
         }
 
-        var endpoint = $"/drive/items/{parentFolderIdentifier.ParentFolderId}/children?$select=id,name,folder";
+        var endpoint = $"{baseEndpoint}/children?$select=id,name,folder";
         var folderNameTrimmed = folderName.Trim();
 
         try
         {
             do
             {
-                var request = new SharePointRequest(endpoint, Method.Get, _authenticationCredentialsProviders);
+                var request = Uri.IsWellFormedUriString(endpoint, UriKind.Absolute)
+                    ? new SharePointRequest(new Uri(endpoint).ToString(), Method.Get, _authenticationCredentialsProviders)
+                    : new SharePointRequest(endpoint, Method.Get, _authenticationCredentialsProviders);
+
                 var result = await _client.ExecuteWithHandling<ListWrapper<FolderMetadataDto>>(request);
 
                 var folder = result.Value
@@ -320,8 +435,9 @@ public class DriveActions : BaseInvocable
                     return folder;
                 }
 
-                endpoint = result.ODataNextLink == null ? null : "/drive" + result.ODataNextLink?.Split("drive")[^1];
-            } while (endpoint != null);
+                endpoint = result.ODataNextLink;
+
+            } while (!string.IsNullOrEmpty(endpoint));
 
             return new FolderMetadataDto();
         }
