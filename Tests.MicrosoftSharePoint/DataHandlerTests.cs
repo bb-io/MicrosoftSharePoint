@@ -1,5 +1,7 @@
 ﻿using Tests.MicrosoftSharePoint.Base;
 using Apps.MicrosoftSharePoint.DataSourceHandlers;
+using Apps.MicrosoftSharePoint.Models.Requests.Pages;
+using Blackbird.Applications.Sdk.Common.Dynamic;
 using Blackbird.Applications.SDK.Extensions.FileManagement.Models.FileDataSourceItems;
 
 namespace Tests.MicrosoftSharePoint;
@@ -40,6 +42,22 @@ public class DataHandlerTests : TestBase
         // Assert
         foreach (var item in result)
             Console.WriteLine($"Name: {item.DisplayName}, Id: {item.Id}, Type: {(item is Folder ? "Folder" : "File")}");
+        Assert.IsNotNull(result);
+    }
+
+    [TestMethod]
+    public async Task PageDataHandler_IsSuccess()
+    {
+        // Arrange
+        var page = new PageRequest { PageId = "" };
+        var handler = new PageDataHandler(InvocationContext, page);
+
+        // Act
+        var result = await handler.GetDataAsync(new DataSourceContext { SearchString = "" }, CancellationToken.None);
+
+        // Assert
+        foreach (var item in result)
+            Console.WriteLine($"ID: {item.Value}, Name: {item.DisplayName}");
         Assert.IsNotNull(result);
     }
 }
