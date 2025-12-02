@@ -1,4 +1,5 @@
-﻿using Apps.MicrosoftSharePoint.DataSourceHandlers;
+﻿using Tests.MicrosoftSharePoint.Base;
+using Apps.MicrosoftSharePoint.DataSourceHandlers;
 using Blackbird.Applications.SDK.Extensions.FileManagement.Models.FileDataSourceItems;
 
 namespace Tests.MicrosoftSharePoint;
@@ -14,7 +15,7 @@ public class DataHandlerTests : TestBase
 
         // Act
         var result = await handler.GetFolderContentAsync(
-            new FolderContentDataSourceContext { FolderId = "b!V1tgT5LcyEiu-qCrLWi_sYE68iUDk7hCsFdpT5k21zfKEJWmu4ZAR7Zk_O7bubtF#017O7UAG7AGGYZEMSZFNDL6GYZFR6R2JGX" }, 
+            new FolderContentDataSourceContext { FolderId = "root" }, 
             CancellationToken.None
         );
 

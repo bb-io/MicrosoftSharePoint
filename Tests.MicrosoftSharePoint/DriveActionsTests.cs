@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+﻿using Tests.MicrosoftSharePoint.Base;
 using Apps.MicrosoftSharePoint.Actions;
 using Apps.MicrosoftSharePoint.Models.Requests;
 using Apps.MicrosoftSharePoint.Models.Identifiers;
@@ -6,7 +6,7 @@ using Apps.MicrosoftSharePoint.Models.Identifiers;
 namespace Tests.MicrosoftSharePoint; 
 
 [TestClass]
-public class DriveActionsTests :TestBase
+public class DriveActionsTests : TestBase
 {
     [TestMethod]
     public async Task FindFolder_IsSuccess()
@@ -26,13 +26,13 @@ public class DriveActionsTests :TestBase
     {
         // Arrange
         var action = new DriveActions(InvocationContext, FileManager);
-        var fileId = "01Q6TCMYOLVEFH7YXSJBGZKI2JGUATR5AH";
+        var fileId = "017O7UAG3PXHBWICU5ANAY55KTCPCF6TOJ";
 
         // Act
         var result = await action.GetFileMetadataById(new FileIdentifier { FileId = fileId });
 
         // Assert
-        Console.WriteLine(JsonConvert.SerializeObject(result, Formatting.Indented));
+        PrintJsonResult(result);
         Assert.IsNotNull(result);
     }
 
@@ -50,7 +50,24 @@ public class DriveActionsTests :TestBase
         );
 
         // Assert
-        Console.WriteLine(JsonConvert.SerializeObject(result, Formatting.Indented));
+        PrintJsonResult(result);
+        Assert.IsNotNull(result);
+    }
+
+    [TestMethod]
+    public async Task DownloadFileById_IsSuccess()
+    {
+        // Arrange
+        var action = new DriveActions(InvocationContext, FileManager);
+        var fileId = "017O7UAG3PXHBWICU5ANAY55KTCPCF6TOJ";
+
+        // Act
+        var result = await action.DownloadFileById(
+            new FileIdentifier { FileId = fileId }
+        );
+
+        // Assert
+        PrintJsonResult(result);
         Assert.IsNotNull(result);
     }
 }

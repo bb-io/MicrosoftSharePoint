@@ -1,18 +1,19 @@
-﻿using System.Net.Mime;
+﻿using RestSharp;
+using System.Net.Mime;
 using Apps.MicrosoftSharePoint.Dtos;
-using Apps.MicrosoftSharePoint.Models.Identifiers;
+using Apps.MicrosoftSharePoint.Helper;
+using Apps.MicrosoftSharePoint.Extensions;
 using Apps.MicrosoftSharePoint.Models.Requests;
 using Apps.MicrosoftSharePoint.Models.Responses;
+using Apps.MicrosoftSharePoint.Models.Identifiers;
+using Blackbird.Applications.SDK.Blueprints;
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Actions;
-using Blackbird.Applications.Sdk.Common.Authentication;
 using Blackbird.Applications.Sdk.Common.Invocation;
-using Apps.MicrosoftSharePoint.Extensions;
-using Blackbird.Applications.SDK.Extensions.FileManagement.Interfaces;
-using Blackbird.Applications.Sdk.Utils.Extensions.Files;
-using RestSharp;
 using Blackbird.Applications.Sdk.Common.Exceptions;
-using Blackbird.Applications.SDK.Blueprints;
+using Blackbird.Applications.Sdk.Common.Authentication;
+using Blackbird.Applications.Sdk.Utils.Extensions.Files;
+using Blackbird.Applications.SDK.Extensions.FileManagement.Interfaces;
 
 namespace Apps.MicrosoftSharePoint.Actions;
 
@@ -36,15 +37,21 @@ public class DriveActions : BaseInvocable
     [Action("Get file metadata", Description = "Retrieve the metadata for a file from site documents.")]
     public async Task<FileMetadataDto> GetFileMetadataById([ActionParameter] FileIdentifier fileIdentifier)
     {
-        var request = new SharePointRequest(
-            $"/drive/items/{fileIdentifier.FileId}?expand=listItem", 
-            Method.Get, 
-            _authenticationCredentialsProviders
-        );
+        var location = ItemIdParser.Parse(fileIdentifier.FileId);
+
+        string endpoint;
+        if (location.IsDefaultDrive)
+            endpoint = $"/drive/items/{location.ItemId}?expand=listItem";
+        else
+            endpoint = $"/drives/{location.DriveId}/items/{location.ItemId}?expand=listItem";
+
+        var request = new SharePointRequest(endpoint, Method.Get, _authenticationCredentialsProviders);
+
         var fileMetadata = await _client.ExecuteWithHandling<FileMetadataDto>(request);
         return fileMetadata;
     }
 
+    // Check for updated files in every drive? Or track only root by default + add the DriveId input?
     [Action("List changed files", Description = "List all files that have been created or modified during past hours. " +
                                                 "If number of hours is not specified, files changed during past 24 " +
                                                 "hours are listed.")]
@@ -72,14 +79,23 @@ public class DriveActions : BaseInvocable
     [Action("Download file", Description = "Download a file from site documents.")]
     public async Task<FileResponse> DownloadFileById([ActionParameter] FileIdentifier fileIdentifier)
     {
-        var request = new SharePointRequest($"/drive/items/{fileIdentifier.FileId}/content", Method.Get, 
-            _authenticationCredentialsProviders);
+        var location = ItemIdParser.Parse(fileIdentifier.FileId);
+
+        string endpoint;
+        if (location.IsDefaultDrive)
+            endpoint = $"/drive/items/{location.ItemId}/content";
+        else
+            endpoint = $"/drives/{location.DriveId}/items/{location.ItemId}/content";
+
+        var request = new SharePointRequest(endpoint, Method.Get, _authenticationCredentialsProviders);
         var response = await _client.ExecuteWithHandling(request);
+
         var filename = response.ContentHeaders.First(h => h.Name == "Content-Disposition").Value.ToString().Split('"')[1];
         var contentType = response.ContentType ?? MediaTypeNames.Text.Plain;
 
         using var stream = new MemoryStream(response.RawBytes);
         var file = await _fileManagementClient.UploadAsync(stream, contentType, filename);
+
         return new FileResponse { File = file };
     }
 
