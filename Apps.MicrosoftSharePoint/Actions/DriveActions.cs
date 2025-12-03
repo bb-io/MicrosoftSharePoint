@@ -4,10 +4,11 @@ using Apps.MicrosoftSharePoint.Dtos;
 using Apps.MicrosoftSharePoint.Helper;
 using Apps.MicrosoftSharePoint.Extensions;
 using Apps.MicrosoftSharePoint.Models.Requests;
+using Apps.MicrosoftSharePoint.Models.Entities;
 using Apps.MicrosoftSharePoint.Models.Responses;
 using Apps.MicrosoftSharePoint.Models.Identifiers;
-using Blackbird.Applications.SDK.Blueprints;
 using Blackbird.Applications.Sdk.Common;
+using Blackbird.Applications.SDK.Blueprints;
 using Blackbird.Applications.Sdk.Common.Actions;
 using Blackbird.Applications.Sdk.Common.Invocation;
 using Blackbird.Applications.Sdk.Common.Exceptions;
@@ -46,8 +47,10 @@ public class DriveActions : BaseInvocable
             endpoint = $"/drives/{location.DriveId}/items/{location.ItemId}?expand=listItem";
 
         var request = new SharePointRequest(endpoint, Method.Get, _authenticationCredentialsProviders);
-
         var fileMetadata = await _client.ExecuteWithHandling<FileMetadataDto>(request);
+
+        DriveEntity defaultDrive = await GetDefaultDrive();
+        ProcessFileMetadataIds(fileMetadata, location, defaultDrive);   
         return fileMetadata;
     }
 
@@ -105,6 +108,10 @@ public class DriveActions : BaseInvocable
             }
 
         } while (!string.IsNullOrEmpty(endpoint) && filesCount != 0);
+
+        DriveEntity defaultDrive = await GetDefaultDrive();
+        foreach (var file in changedFiles)
+            ProcessFileMetadataIds(file, location, defaultDrive);
 
         return new ListFilesResponse { Files = changedFiles };
     }
@@ -227,6 +234,8 @@ public class DriveActions : BaseInvocable
             } while (resumableUploadResult.NextExpectedRanges != null);
         }
 
+        DriveEntity defaultDrive = await GetDefaultDrive();
+        ProcessFileMetadataIds(fileMetadata, location, defaultDrive);
         return fileMetadata;
     }
 
@@ -284,6 +293,9 @@ public class DriveActions : BaseInvocable
 
         var request = new SharePointRequest(endpoint, Method.Get, _authenticationCredentialsProviders);
         var folderMetadata = await _client.ExecuteWithHandling<FolderMetadataDto>(request);
+
+        DriveEntity defaultDrive = await GetDefaultDrive();
+        ProcessFolderMetadataIds(folderMetadata, location, defaultDrive);
         return folderMetadata;
     }
 
@@ -336,6 +348,10 @@ public class DriveActions : BaseInvocable
 
         } while (!string.IsNullOrEmpty(endpoint));
 
+        DriveEntity defaultDrive = await GetDefaultDrive();
+        foreach (var file in filesInFolder)
+            ProcessFileMetadataIds(file, location, defaultDrive);
+
         return new ListFilesResponse { Files = filesInFolder };
     }
 
@@ -368,6 +384,9 @@ public class DriveActions : BaseInvocable
         });
 
         var folderMetadata = await _client.ExecuteWithHandling<FolderMetadataDto>(request);
+
+        DriveEntity defaultDrive = await GetDefaultDrive();
+        ProcessFolderMetadataIds(folderMetadata, location, defaultDrive);
         return folderMetadata;
     }
 
@@ -378,6 +397,9 @@ public class DriveActions : BaseInvocable
             throw new PluginMisconfigurationException("Folder ID cannot be empty.");
 
         var location = ItemIdParser.Parse(folderIdentifier.FolderId);
+
+        if (location.ItemId.Equals("root", StringComparison.OrdinalIgnoreCase))
+            throw new PluginMisconfigurationException("You cannot delete the root folder of a drive.");
 
         string endpoint;
         if (location.IsDefaultDrive)
@@ -418,6 +440,7 @@ public class DriveActions : BaseInvocable
 
         try
         {
+            DriveEntity defaultDrive = await GetDefaultDrive();
             do
             {
                 var request = Uri.IsWellFormedUriString(endpoint, UriKind.Absolute)
@@ -432,6 +455,7 @@ public class DriveActions : BaseInvocable
 
                 if (folder != null)
                 {
+                    ProcessFolderMetadataIds(folder, location, defaultDrive);
                     return folder;
                 }
 
@@ -443,9 +467,58 @@ public class DriveActions : BaseInvocable
         }
         catch (Exception ex)
         {
-            throw new PluginApplicationException($"Failed to find folder '{folderName}' in parent folder '{parentFolderIdentifier.ParentFolderId}'. Error: {ex.Message}");
+            throw new PluginApplicationException(
+                $"Failed to find folder '{folderName}' in parent folder '{parentFolderIdentifier.ParentFolderId}'. " +
+                $"Error: {ex.Message}"
+            );
         }
     }
 
     #endregion
+
+    private static FileMetadataDto ProcessFileMetadataIds(
+        FileMetadataDto fileMetadata, 
+        ItemLocationDto location, 
+        DriveEntity defaultDrive)
+    {
+        var currentDriveId = location.DriveId ?? defaultDrive.Id;
+
+        fileMetadata.FileId = ItemIdParser.Format(currentDriveId, fileMetadata.FileId, defaultDrive.Id);
+        if (fileMetadata.ParentReference != null && !string.IsNullOrEmpty(fileMetadata.ParentReference.Id))
+        {
+            fileMetadata.ParentReference.Id = ItemIdParser.Format(
+                currentDriveId, 
+                fileMetadata.ParentReference.Id, 
+                defaultDrive.Id
+            );
+        }
+        return fileMetadata;
+    }
+
+    private static FolderMetadataDto ProcessFolderMetadataIds(
+        FolderMetadataDto folderMetadata,
+        ItemLocationDto location,
+        DriveEntity defaultDrive)
+    {
+        var currentDriveId = location.DriveId ?? defaultDrive.Id;
+        folderMetadata.Id = ItemIdParser.Format(currentDriveId, folderMetadata.Id, defaultDrive.Id);
+        if (folderMetadata.ParentReference != null && !string.IsNullOrEmpty(folderMetadata.ParentReference.Id))
+        {
+            folderMetadata.ParentReference.Id = ItemIdParser.Format(
+                currentDriveId,
+                folderMetadata.ParentReference.Id,
+                defaultDrive.Id
+            );
+        }
+        return folderMetadata;
+    }
+
+    private async Task<DriveEntity> GetDefaultDrive()
+    {
+        var creds = InvocationContext.AuthenticationCredentialsProviders;
+        var siteId = creds.First(x => x.KeyName == "SiteId").Value;
+
+        var request = new SharePointRequest($"/sites/{siteId}/drive", Method.Get, creds);
+        return await _client.ExecuteWithHandling<DriveEntity>(request);
+    }
 }
