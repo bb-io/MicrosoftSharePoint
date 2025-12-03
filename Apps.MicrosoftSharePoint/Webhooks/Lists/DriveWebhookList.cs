@@ -37,9 +37,17 @@ public class DriveWebhookList(InvocationContext invocationContext) : BaseInvocab
 
         var location = ItemIdParser.Parse(folder.FolderId);
 
+        string? targetParentId = location.ItemId;
+
+        if (string.Equals(location.ItemId, "root", StringComparison.OrdinalIgnoreCase))
+        {
+            var rootFolder = await GetRootFolder(location);
+            targetParentId = rootFolder.Id;
+        }
+
         var changedFiles = GetChangedItems<FileMetadataDto>(payload.DeltaToken, location, out var newDeltaToken)
             .Where(item => item.MimeType != null
-                           && (folder.FolderId == null || item.ParentReference.Id == location.ItemId)
+                           && (folder.FolderId == null || item.ParentReference.Id == targetParentId)
                            && (contentType.ContentType == null || item.MimeType == contentType.ContentType))
             .ToList();
 
@@ -65,13 +73,20 @@ public class DriveWebhookList(InvocationContext invocationContext) : BaseInvocab
         [WebhookParameter] FolderIdentifier folder)
     {
         var payload = DeserializePayload(request);
-
         var location = ItemIdParser.Parse(folder.FolderId);
+
+        string? targetParentId = location.ItemId;
+
+        if (string.Equals(location.ItemId, "root", StringComparison.OrdinalIgnoreCase))
+        {
+            var rootFolder = await GetRootFolder(location);
+            targetParentId = rootFolder.Id;
+        }
 
         var changedFolders = GetChangedItems<FolderMetadataDto>(payload.DeltaToken, location, out var newDeltaToken)
             .Where(item => item.ChildCount != null
                            && item.ParentReference!.Id != null
-                           && (folder.FolderId == null || item.ParentReference.Id == location.ItemId))
+                           && (folder.FolderId == null || item.ParentReference.Id == targetParentId))
             .ToList();
 
         if (!changedFolders.Any())
@@ -87,6 +102,20 @@ public class DriveWebhookList(InvocationContext invocationContext) : BaseInvocab
             HttpResponseMessage = new HttpResponseMessage(HttpStatusCode.OK),
             Result = new ListFoldersResponse { Folders = changedFolders }
         };
+    }
+
+    private async Task<FolderMetadataDto> GetRootFolder(ItemLocationDto location)
+    {
+        var client = new SharePointBetaClient(creds);
+        string endpoint;
+
+        if (location.IsDefaultDrive)
+            endpoint = "/drive/root";
+        else
+            endpoint = $"/drives/{location.DriveId}/root";
+
+        var request = new SharePointRequest(endpoint, Method.Get, creds);
+        return await client.ExecuteWithHandling<FolderMetadataDto>(request);
     }
 
     private List<T> GetChangedItems<T>(string deltaToken, ItemLocationDto location, out string newDeltaToken)
