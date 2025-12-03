@@ -35,27 +35,10 @@ public class DriveWebhookList(InvocationContext invocationContext) : BaseInvocab
         [WebhookParameter] ContentTypeInput contentType)
     {
         var payload = DeserializePayload(request);
-
         var location = ItemIdParser.Parse(folder.FolderId);
+        DriveEntity defaultDrive = await GetDefaultDrive();
 
-        var allowedParentIds = new List<string>();
-        if (!string.Equals(location.ItemId, "root", StringComparison.OrdinalIgnoreCase))
-            allowedParentIds.Add(location.ItemId);
-        else
-        {
-            var rootFolder = await GetRootFolder(location);
-            if (rootFolder?.Id != null) 
-                allowedParentIds.Add(rootFolder.Id);
-
-            if (location.IsDefaultDrive)
-            {
-                var defaultDrive = await GetDefaultDrive();
-                if (defaultDrive?.Id != null) 
-                    allowedParentIds.Add(defaultDrive.Id);
-            }
-            else
-                allowedParentIds.Add(location.DriveId!);
-        }
+        var allowedParentIds = await GetAllowedParentIds(location, defaultDrive);
 
         var changedFiles = GetChangedItems<FileMetadataDto>(payload.DeltaToken, location, out var newDeltaToken)
             .Where(item => item.MimeType != null
@@ -69,6 +52,14 @@ public class DriveWebhookList(InvocationContext invocationContext) : BaseInvocab
                 HttpResponseMessage = new HttpResponseMessage(HttpStatusCode.OK),
                 ReceivedWebhookRequestType = WebhookRequestType.Preflight
             };
+
+        foreach (var file in changedFiles)
+        {
+            var currentDriveId = location.DriveId ?? defaultDrive!.Id;
+            file.FileId = ItemIdParser.Format(currentDriveId, file.FileId, defaultDrive!.Id); 
+            if (file.ParentReference != null && !string.IsNullOrEmpty(file.ParentReference.Id))
+                file.ParentReference.Id = ItemIdParser.Format(currentDriveId, file.ParentReference.Id, defaultDrive!.Id);
+        }
 
         await StoreDeltaToken(payload.DeltaToken, newDeltaToken, location);
         return new WebhookResponse<ListFilesResponse>
@@ -86,25 +77,9 @@ public class DriveWebhookList(InvocationContext invocationContext) : BaseInvocab
     {
         var payload = DeserializePayload(request);
         var location = ItemIdParser.Parse(folder.FolderId);
+        DriveEntity defaultDrive = await GetDefaultDrive();
 
-        var allowedParentIds = new List<string>();
-        if (!string.Equals(location.ItemId, "root", StringComparison.OrdinalIgnoreCase))
-            allowedParentIds.Add(location.ItemId);
-        else
-        {
-            var rootFolder = await GetRootFolder(location);
-            if (rootFolder?.Id != null) 
-                allowedParentIds.Add(rootFolder.Id);
-
-            if (location.IsDefaultDrive)
-            {
-                var defaultDrive = await GetDefaultDrive();
-                if (defaultDrive?.Id != null) 
-                    allowedParentIds.Add(defaultDrive.Id);
-            }
-            else
-                allowedParentIds.Add(location.DriveId!);
-        }
+        var allowedParentIds = await GetAllowedParentIds(location, defaultDrive);
 
         var changedFolders = GetChangedItems<FolderMetadataDto>(payload.DeltaToken, location, out var newDeltaToken)
             .Where(item => item.ChildCount != null
@@ -119,12 +94,42 @@ public class DriveWebhookList(InvocationContext invocationContext) : BaseInvocab
                 ReceivedWebhookRequestType = WebhookRequestType.Preflight
             };
 
+        foreach (var changedfolder in changedFolders)
+        {
+            var currentDriveId = location.DriveId ?? defaultDrive!.Id;
+            changedfolder.Id = ItemIdParser.Format(currentDriveId, changedfolder.Id, defaultDrive!.Id);
+            if (changedfolder.ParentReference != null && !string.IsNullOrEmpty(changedfolder.ParentReference.Id))
+                changedfolder.ParentReference.Id = ItemIdParser.Format(currentDriveId, changedfolder.ParentReference.Id, defaultDrive!.Id);
+        }
+
         await StoreDeltaToken(payload.DeltaToken, newDeltaToken, location);
         return new WebhookResponse<ListFoldersResponse>
         {
             HttpResponseMessage = new HttpResponseMessage(HttpStatusCode.OK),
             Result = new ListFoldersResponse { Folders = changedFolders }
         };
+    }
+
+    private async Task<List<string>> GetAllowedParentIds(ItemLocationDto location, DriveEntity defaultDrive)
+    {
+        var allowedParentIds = new List<string>();
+        if (!string.Equals(location.ItemId, "root", StringComparison.OrdinalIgnoreCase))
+            allowedParentIds.Add(location.ItemId);
+        else
+        {
+            var rootFolder = await GetRootFolder(location);
+            if (rootFolder?.Id != null)
+                allowedParentIds.Add(rootFolder.Id);
+
+            if (location.IsDefaultDrive)
+            {
+                if (defaultDrive?.Id != null)
+                    allowedParentIds.Add(defaultDrive.Id);
+            }
+            else
+                allowedParentIds.Add(location.DriveId!);
+        }
+        return allowedParentIds;
     }
 
     private async Task<FolderMetadataDto> GetRootFolder(ItemLocationDto location)
