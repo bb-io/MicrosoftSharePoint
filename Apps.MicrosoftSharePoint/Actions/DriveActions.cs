@@ -15,6 +15,7 @@ using Blackbird.Applications.Sdk.Common.Exceptions;
 using Blackbird.Applications.Sdk.Common.Authentication;
 using Blackbird.Applications.Sdk.Utils.Extensions.Files;
 using Blackbird.Applications.SDK.Extensions.FileManagement.Interfaces;
+using Blackbird.Applications.Sdk.Common.Files;
 
 namespace Apps.MicrosoftSharePoint.Actions;
 
@@ -120,24 +121,26 @@ public class DriveActions : BaseInvocable
     [Action("Download file", Description = "Download a file from site documents.")]
     public async Task<FileResponse> DownloadFileById([ActionParameter] FileIdentifier fileIdentifier)
     {
+        var fileMetadata = await GetFileMetadataById(fileIdentifier);
+        if (fileMetadata == null)
+            throw new PluginApplicationException("File not found or inaccessible.");
+
         var location = ItemIdParser.Parse(fileIdentifier.FileId);
 
-        string endpoint;
+        string downloadUrl;
         if (location.IsDefaultDrive)
-            endpoint = $"/drive/items/{location.ItemId}/content";
+            downloadUrl = $"https://graph.microsoft.com/v1.0/drive/items/{location.ItemId}/content";
         else
-            endpoint = $"/drives/{location.DriveId}/items/{location.ItemId}/content";
+            downloadUrl = $"https://graph.microsoft.com/v1.0/drives/{location.DriveId}/items/{location.ItemId}/content";
 
-        var request = new SharePointRequest(endpoint, Method.Get, _authenticationCredentialsProviders);
-        var response = await _client.ExecuteWithHandling(request);
+        var fileRequest = new HttpRequestMessage(HttpMethod.Get, downloadUrl);
+        var accessToken = _authenticationCredentialsProviders.First(p => p.KeyName == "Authorization").Value;
+        fileRequest.Headers.Add("Authorization", accessToken);
 
-        var filename = response.ContentHeaders.First(h => h.Name == "Content-Disposition").Value.ToString().Split('"')[1];
-        var contentType = response.ContentType ?? MediaTypeNames.Text.Plain;
+        var mimeType = fileMetadata.MimeType ?? MediaTypeNames.Application.Octet;
+        var reference = new FileReference(fileRequest, fileMetadata.Name, mimeType);
 
-        using var stream = new MemoryStream(response.RawBytes);
-        var file = await _fileManagementClient.UploadAsync(stream, contentType, filename);
-
-        return new FileResponse { File = file };
+        return new FileResponse { File = reference };
     }
 
     [BlueprintActionDefinition(BlueprintAction.UploadFile)]
