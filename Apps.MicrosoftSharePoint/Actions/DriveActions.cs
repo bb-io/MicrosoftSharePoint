@@ -126,12 +126,15 @@ public class DriveActions : BaseInvocable
             throw new PluginApplicationException("File not found or inaccessible.");
 
         var location = ItemIdParser.Parse(fileIdentifier.FileId);
-
+        
+        var siteId = _authenticationCredentialsProviders.First(p => p.KeyName == "SiteId").Value;
+        var betaUrl = $"https://graph.microsoft.com/beta/sites/{siteId}";
+        
         string downloadUrl;
         if (location.IsDefaultDrive)
-            downloadUrl = $"https://graph.microsoft.com/v1.0/drive/items/{location.ItemId}/content";
+            downloadUrl = $"{betaUrl}/drive/items/{location.ItemId}/content";
         else
-            downloadUrl = $"https://graph.microsoft.com/v1.0/drives/{location.DriveId}/items/{location.ItemId}/content";
+            downloadUrl = $"{betaUrl}/drives/{location.DriveId}/items/{location.ItemId}/content";
 
         var fileRequest = new HttpRequestMessage(HttpMethod.Get, downloadUrl);
         var accessToken = _authenticationCredentialsProviders.First(p => p.KeyName == "Authorization").Value;
