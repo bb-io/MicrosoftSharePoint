@@ -164,23 +164,12 @@ public class DriveWebhookList(InvocationContext invocationContext) : BaseInvocab
 
         string baseEndpoint;
         if (location.IsDefaultDrive)
-        {
-            baseEndpoint = location.ItemId.Equals("root", StringComparison.OrdinalIgnoreCase)
-                ? "/drive/root/delta"
-                : $"/drive/items/{location.ItemId}/delta";
-        }
+            baseEndpoint = "/drive/root";
         else
-        {
-            baseEndpoint = location.ItemId.Equals("root", StringComparison.OrdinalIgnoreCase)
-                ? $"/drives/{location.DriveId}/root/delta"
-                : $"/drives/{location.DriveId}/items/{location.ItemId}/delta";
-        }
+            baseEndpoint = $"/drives/{location.DriveId}/root";
 
-        string endpoint = string.IsNullOrEmpty(deltaToken)
-            ? baseEndpoint
-            : $"{baseEndpoint}?token={deltaToken}";
+        var request = new SharePointRequest($"{baseEndpoint}/delta?token={deltaToken}", Method.Get, creds);
 
-        var request = new SharePointRequest(endpoint, Method.Get, creds);
         var result = await client.ExecuteWithHandling<ListWrapper<T>>(request);
 
         if (result?.Value != null)
