@@ -35,7 +35,7 @@ public class DataHandlerTests : TestBase
 
         // Act
         var result = await handler.GetFolderContentAsync(
-            new FolderContentDataSourceContext { FolderId = string.Empty }, 
+            new FolderContentDataSourceContext { FolderId = "root" }, 
             CancellationToken.None
         );
 

@@ -50,7 +50,7 @@ public class DriveActions : BaseInvocable
         var request = new SharePointRequest(endpoint, Method.Get, _authenticationCredentialsProviders);
         var fileMetadata = await _client.ExecuteWithHandling<FileMetadataDto>(request);
 
-        DriveEntity defaultDrive = await GetDefaultDrive();
+        DriveEntity defaultDrive = await DriveHelper.GetDefaultDrive(_authenticationCredentialsProviders, _client);
         ProcessFileMetadataIds(fileMetadata, location, defaultDrive);   
         return fileMetadata;
     }
@@ -60,8 +60,10 @@ public class DriveActions : BaseInvocable
                                                 "hours are listed.")]
     public async Task<ListFilesResponse> ListChangedFiles(
         [ActionParameter] FolderIdentifier folderIdentifier,
-        [ActionParameter][Display("Hours")] int? hours)
+        [ActionParameter][Display("Hours")] int? hours,
+        [ActionParameter] SubfolderRequest subfolderRequest)
     {
+        subfolderRequest.ApplyDefaultValues();
         var location = ItemIdParser.Parse(folderIdentifier?.FolderId);
 
         string baseEndpoint;
@@ -78,11 +80,12 @@ public class DriveActions : BaseInvocable
                 : $"/drives/{location.DriveId}/items/{location.ItemId}";
         }
 
-        var endpoint = $"{baseEndpoint}/search(q='.')?$orderby=lastModifiedDateTime desc";
+        string? endpoint = subfolderRequest.IncludeSubfolders == true
+            ? $"{baseEndpoint}/search(q='.')?$orderby=lastModifiedDateTime desc"
+            : $"{baseEndpoint}/children?$orderby=lastModifiedDateTime desc";
 
         var startDateTime = (DateTime.Now - TimeSpan.FromHours(hours ?? 24)).ToUniversalTime();
         var changedFiles = new List<FileMetadataDto>();
-        int filesCount;
 
         do
         {
@@ -97,24 +100,19 @@ public class DriveActions : BaseInvocable
                 var files = result.Value
                     .Where(item => item.MimeType != null && item.LastModifiedDateTime >= startDateTime);
 
-                filesCount = files.Count();
                 changedFiles.AddRange(files);
-
                 endpoint = result.ODataNextLink;
             }
             else
-            {
-                filesCount = 0;
                 endpoint = null;
-            }
 
-        } while (!string.IsNullOrEmpty(endpoint) && filesCount != 0);
+        } while (!string.IsNullOrEmpty(endpoint));
 
-        DriveEntity defaultDrive = await GetDefaultDrive();
+        DriveEntity defaultDrive = await DriveHelper.GetDefaultDrive(_authenticationCredentialsProviders, _client);
         foreach (var file in changedFiles)
             ProcessFileMetadataIds(file, location, defaultDrive);
 
-        return new ListFilesResponse { Files = changedFiles };
+        return new ListFilesResponse(changedFiles);
     }
 
     [BlueprintActionDefinition(BlueprintAction.DownloadFile)]
@@ -240,7 +238,7 @@ public class DriveActions : BaseInvocable
             } while (resumableUploadResult.NextExpectedRanges != null);
         }
 
-        DriveEntity defaultDrive = await GetDefaultDrive();
+        DriveEntity defaultDrive = await DriveHelper.GetDefaultDrive(_authenticationCredentialsProviders, _client);
         ProcessFileMetadataIds(fileMetadata, location, defaultDrive);
         return fileMetadata;
     }
@@ -300,7 +298,7 @@ public class DriveActions : BaseInvocable
         var request = new SharePointRequest(endpoint, Method.Get, _authenticationCredentialsProviders);
         var folderMetadata = await _client.ExecuteWithHandling<FolderMetadataDto>(request);
 
-        DriveEntity defaultDrive = await GetDefaultDrive();
+        DriveEntity defaultDrive = await DriveHelper.GetDefaultDrive(_authenticationCredentialsProviders, _client);
         ProcessFolderMetadataIds(folderMetadata, location, defaultDrive);
         return folderMetadata;
     }
@@ -308,23 +306,29 @@ public class DriveActions : BaseInvocable
     [Action("Search files", Description = "Retrieve metadata for files contained in a folder.")]
     public async Task<ListFilesResponse> ListFilesInFolderById(
         [ActionParameter] FolderIdentifier folderIdentifier,
-        [ActionParameter] FilterExtensions extensions)
+        [ActionParameter] FilterExtensions extensions,
+        [ActionParameter] SubfolderRequest subfolderRequest)
     {
+        subfolderRequest.ApplyDefaultValues();
         var location = ItemIdParser.Parse(folderIdentifier.FolderId);
 
-        string endpoint;
+        string baseEndpoint;
         if (location.IsDefaultDrive)
         {
-            endpoint = location.ItemId.Equals("root", StringComparison.OrdinalIgnoreCase)
-                ? "/drive/root/children"
-                : $"/drive/items/{location.ItemId}/children";
+            baseEndpoint = location.ItemId.Equals("root", StringComparison.OrdinalIgnoreCase)
+                ? "/drive/root"
+                : $"/drive/items/{location.ItemId}";
         }
         else
         {
-            endpoint = location.ItemId.Equals("root", StringComparison.OrdinalIgnoreCase)
-                ? $"/drives/{location.DriveId}/root/children"
-                : $"/drives/{location.DriveId}/items/{location.ItemId}/children";
+            baseEndpoint = location.ItemId.Equals("root", StringComparison.OrdinalIgnoreCase)
+                ? $"/drives/{location.DriveId}/root"
+                : $"/drives/{location.DriveId}/items/{location.ItemId}";
         }
+
+        string? endpoint = subfolderRequest.IncludeSubfolders == true
+            ? $"{baseEndpoint}/search(q='.')?$orderby=lastModifiedDateTime desc"
+            : $"{baseEndpoint}/children?$orderby=lastModifiedDateTime desc";
 
         var filesInFolder = new List<FileMetadataDto>();
         do
@@ -354,11 +358,11 @@ public class DriveActions : BaseInvocable
 
         } while (!string.IsNullOrEmpty(endpoint));
 
-        DriveEntity defaultDrive = await GetDefaultDrive();
+        DriveEntity defaultDrive = await DriveHelper.GetDefaultDrive(_authenticationCredentialsProviders, _client);
         foreach (var file in filesInFolder)
             ProcessFileMetadataIds(file, location, defaultDrive);
 
-        return new ListFilesResponse { Files = filesInFolder };
+        return new ListFilesResponse(filesInFolder);
     }
 
     [Action("Create folder", Description = "Create a new folder in parent folder.")]
@@ -391,7 +395,7 @@ public class DriveActions : BaseInvocable
 
         var folderMetadata = await _client.ExecuteWithHandling<FolderMetadataDto>(request);
 
-        DriveEntity defaultDrive = await GetDefaultDrive();
+        DriveEntity defaultDrive = await DriveHelper.GetDefaultDrive(_authenticationCredentialsProviders, _client);
         ProcessFolderMetadataIds(folderMetadata, location, defaultDrive);
         return folderMetadata;
     }
@@ -446,7 +450,7 @@ public class DriveActions : BaseInvocable
 
         try
         {
-            DriveEntity defaultDrive = await GetDefaultDrive();
+            DriveEntity defaultDrive = await DriveHelper.GetDefaultDrive(_authenticationCredentialsProviders, _client);
             do
             {
                 var request = Uri.IsWellFormedUriString(endpoint, UriKind.Absolute)
@@ -517,14 +521,5 @@ public class DriveActions : BaseInvocable
             );
         }
         return folderMetadata;
-    }
-
-    private async Task<DriveEntity> GetDefaultDrive()
-    {
-        var creds = InvocationContext.AuthenticationCredentialsProviders;
-        var siteId = creds.First(x => x.KeyName == "SiteId").Value;
-
-        var request = new SharePointRequest($"/sites/{siteId}/drive", Method.Get, creds);
-        return await _client.ExecuteWithHandling<DriveEntity>(request);
     }
 }
