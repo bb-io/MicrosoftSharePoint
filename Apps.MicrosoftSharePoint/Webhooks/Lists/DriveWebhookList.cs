@@ -44,17 +44,13 @@ public class DriveWebhookList(InvocationContext invocationContext) : BaseInvocab
 
         var allowedParentIds = await GetAllowedParentIds(location, defaultDrive);
 
-        var changedFiles = await GetChangedItems<FileMetadataDto>(
-            payload.DeltaToken,
-            location,
-            subfolderInput.IncludeSubfolders,
-            defaultDrive.Id,
-            item => item.ParentReference?.Id);
+        var changedFiles = await GetChangedItems<FileMetadataDto>(payload.DeltaToken, location);
 
         var files = changedFiles.Items
-            .Where(item => item.MimeType != null
-                           && (folder.FolderId == null || (item.ParentReference?.Id != null && allowedParentIds.Contains(item.ParentReference.Id)))
-                           && (contentType.ContentType == null || item.MimeType == contentType.ContentType))
+            .Where(item => item.MimeType != null)
+            .Where(item => contentType.ContentType == null || item.MimeType == contentType.ContentType)
+            .Where(item => subfolderInput.IncludeSubfolders == true ||
+                          (item.ParentReference?.Id != null && allowedParentIds.Contains(item.ParentReference.Id)))
             .ToList();
 
         if (files.Count == 0)
@@ -95,17 +91,11 @@ public class DriveWebhookList(InvocationContext invocationContext) : BaseInvocab
 
         var allowedParentIds = await GetAllowedParentIds(location, defaultDrive);
 
-        var changedFolders = await GetChangedItems<FolderMetadataDto>(
-            payload.DeltaToken,
-            location,
-            subfolderInput.IncludeSubfolders,
-            defaultDrive.Id,
-            item => item.ParentReference?.Id);
+        var changedFolders = await GetChangedItems<FolderMetadataDto>(payload.DeltaToken, location);
 
         var folders = changedFolders.Items
-            .Where(item => item.ChildCount != null
-                           && item.ParentReference!.Id != null
-                           && (folder.FolderId == null || allowedParentIds.Contains(item.ParentReference.Id)))
+            .Where(item => item.ChildCount != null && item.ParentReference?.Id != null)
+            .Where(item => subfolderInput.IncludeSubfolders == true || allowedParentIds.Contains(item.ParentReference!.Id!))
             .ToList();
 
         if (folders.Count == 0)
@@ -167,12 +157,7 @@ public class DriveWebhookList(InvocationContext invocationContext) : BaseInvocab
         return await client.ExecuteWithHandling<FolderMetadataDto>(request);
     }
 
-    private async Task<(List<T> Items, string NewDeltaToken)> GetChangedItems<T>(
-        string deltaToken,
-        ItemLocationDto location,
-        bool? includeSubfolders,
-        string defaultDriveId,
-        Func<T, string?> getParentIdSelector)
+    private async Task<(List<T> Items, string NewDeltaToken)> GetChangedItems<T>(string deltaToken, ItemLocationDto location)
     {
         var client = new SharePointBetaClient(creds);
         var items = new List<T>();
@@ -215,16 +200,7 @@ public class DriveWebhookList(InvocationContext invocationContext) : BaseInvocab
                 items.AddRange(result.Value);
         }
 
-        if (includeSubfolders == false)
-        {
-            string targetFolderId = location.ItemId.Equals("root", StringComparison.OrdinalIgnoreCase)
-                ? defaultDriveId
-                : location.ItemId;
-
-            items = items.Where(item => getParentIdSelector(item) == targetFolderId).ToList();
-        }
-
-        string newDeltaToken = null;
+        string newDeltaToken = string.Empty;
         if (!string.IsNullOrEmpty(result?.ODataDeltaLink))
             newDeltaToken = QueryHelpers.ParseQuery(result.ODataDeltaLink.Split("?")[1])["token"];
 
