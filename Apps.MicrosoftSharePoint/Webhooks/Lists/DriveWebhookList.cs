@@ -4,6 +4,7 @@ using Apps.MicrosoftSharePoint.Extensions;
 using Apps.MicrosoftSharePoint.Helper;
 using Apps.MicrosoftSharePoint.Models.Entities;
 using Apps.MicrosoftSharePoint.Models.Identifiers;
+using Apps.MicrosoftSharePoint.Models.Requests;
 using Apps.MicrosoftSharePoint.Models.Responses;
 using Apps.MicrosoftSharePoint.Webhooks.Handlers;
 using Apps.MicrosoftSharePoint.Webhooks.Inputs;
@@ -32,28 +33,38 @@ public class DriveWebhookList(InvocationContext invocationContext) : BaseInvocab
     public async Task<WebhookResponse<ListFilesResponse>> OnFilesUpdatedOrCreated(
         WebhookRequest request,
         [WebhookParameter] FolderIdentifier folder, 
-        [WebhookParameter] ContentTypeInput contentType)
+        [WebhookParameter] ContentTypeInput contentType,
+        [WebhookParameter] SubfolderRequest subfolderInput)
     {
+        subfolderInput.ApplyDefaultValues();
+
         var payload = DeserializePayload(request);
         var location = ItemIdParser.Parse(folder.FolderId);
-        DriveEntity defaultDrive = await GetDefaultDrive();
+        DriveEntity defaultDrive = await DriveHelper.GetDefaultDrive(creds, new SharePointBetaClient(creds));
 
         var allowedParentIds = await GetAllowedParentIds(location, defaultDrive);
 
-        var changedFiles = GetChangedItems<FileMetadataDto>(payload.DeltaToken, location, out var newDeltaToken)
+        var changedFiles = await GetChangedItems<FileMetadataDto>(
+            payload.DeltaToken,
+            location,
+            subfolderInput.IncludeSubfolders,
+            defaultDrive.Id,
+            item => item.ParentReference?.Id);
+
+        var files = changedFiles.Items
             .Where(item => item.MimeType != null
                            && (folder.FolderId == null || (item.ParentReference?.Id != null && allowedParentIds.Contains(item.ParentReference.Id)))
                            && (contentType.ContentType == null || item.MimeType == contentType.ContentType))
             .ToList();
 
-        if (!changedFiles.Any())
+        if (files.Count == 0)
             return new WebhookResponse<ListFilesResponse>
             {
                 HttpResponseMessage = new HttpResponseMessage(HttpStatusCode.OK),
                 ReceivedWebhookRequestType = WebhookRequestType.Preflight
             };
 
-        foreach (var file in changedFiles)
+        foreach (var file in files)
         {
             var currentDriveId = location.DriveId ?? defaultDrive!.Id;
             file.FileId = ItemIdParser.Format(currentDriveId, file.FileId, defaultDrive!.Id); 
@@ -61,11 +72,11 @@ public class DriveWebhookList(InvocationContext invocationContext) : BaseInvocab
                 file.ParentReference.Id = ItemIdParser.Format(currentDriveId, file.ParentReference.Id, defaultDrive!.Id);
         }
 
-        await StoreDeltaToken(payload.DeltaToken, newDeltaToken, location);
+        await StoreDeltaToken(payload.DeltaToken, changedFiles.NewDeltaToken, location);
         return new WebhookResponse<ListFilesResponse>
         {
             HttpResponseMessage = new HttpResponseMessage(HttpStatusCode.OK),
-            Result = new ListFilesResponse { Files = changedFiles }
+            Result = new ListFilesResponse(files)
         };
     }
 
@@ -73,28 +84,38 @@ public class DriveWebhookList(InvocationContext invocationContext) : BaseInvocab
         Description = "This webhook is triggered when folders are updated or created.")]
     public async Task<WebhookResponse<ListFoldersResponse>> OnFoldersUpdatedOrCreated(
         WebhookRequest request,
-        [WebhookParameter] FolderIdentifier folder)
+        [WebhookParameter] FolderIdentifier folder,
+        [WebhookParameter] SubfolderRequest subfolderInput)
     {
+        subfolderInput.ApplyDefaultValues();
+
         var payload = DeserializePayload(request);
         var location = ItemIdParser.Parse(folder.FolderId);
-        DriveEntity defaultDrive = await GetDefaultDrive();
+        DriveEntity defaultDrive = await DriveHelper.GetDefaultDrive(creds, new SharePointBetaClient(creds));
 
         var allowedParentIds = await GetAllowedParentIds(location, defaultDrive);
 
-        var changedFolders = GetChangedItems<FolderMetadataDto>(payload.DeltaToken, location, out var newDeltaToken)
+        var changedFolders = await GetChangedItems<FolderMetadataDto>(
+            payload.DeltaToken,
+            location,
+            subfolderInput.IncludeSubfolders,
+            defaultDrive.Id,
+            item => item.ParentReference?.Id);
+
+        var folders = changedFolders.Items
             .Where(item => item.ChildCount != null
                            && item.ParentReference!.Id != null
                            && (folder.FolderId == null || allowedParentIds.Contains(item.ParentReference.Id)))
             .ToList();
 
-        if (!changedFolders.Any())
+        if (folders.Count == 0)
             return new WebhookResponse<ListFoldersResponse>
             {
                 HttpResponseMessage = new HttpResponseMessage(HttpStatusCode.OK),
                 ReceivedWebhookRequestType = WebhookRequestType.Preflight
             };
 
-        foreach (var changedfolder in changedFolders)
+        foreach (var changedfolder in folders)
         {
             var currentDriveId = location.DriveId ?? defaultDrive!.Id;
             changedfolder.Id = ItemIdParser.Format(currentDriveId, changedfolder.Id, defaultDrive!.Id);
@@ -102,11 +123,11 @@ public class DriveWebhookList(InvocationContext invocationContext) : BaseInvocab
                 changedfolder.ParentReference.Id = ItemIdParser.Format(currentDriveId, changedfolder.ParentReference.Id, defaultDrive!.Id);
         }
 
-        await StoreDeltaToken(payload.DeltaToken, newDeltaToken, location);
+        await StoreDeltaToken(payload.DeltaToken, changedFolders.NewDeltaToken, location);
         return new WebhookResponse<ListFoldersResponse>
         {
             HttpResponseMessage = new HttpResponseMessage(HttpStatusCode.OK),
-            Result = new ListFoldersResponse { Folders = changedFolders }
+            Result = new ListFoldersResponse(folders)
         };
     }
 
@@ -146,32 +167,41 @@ public class DriveWebhookList(InvocationContext invocationContext) : BaseInvocab
         return await client.ExecuteWithHandling<FolderMetadataDto>(request);
     }
 
-    private async Task<DriveEntity> GetDefaultDrive()
-    {
-        var creds = InvocationContext.AuthenticationCredentialsProviders;
-        var siteId = creds.First(x => x.KeyName == "SiteId").Value;
-        var client = new SharePointBetaClient(creds);
-        var request = new SharePointRequest($"/sites/{siteId}/drive", Method.Get, creds);
-        return await client.ExecuteWithHandling<DriveEntity>(request);
-    }
-
-    private List<T> GetChangedItems<T>(string deltaToken, ItemLocationDto location, out string newDeltaToken)
+    private async Task<(List<T> Items, string NewDeltaToken)> GetChangedItems<T>(
+        string deltaToken,
+        ItemLocationDto location,
+        bool? includeSubfolders,
+        string defaultDriveId,
+        Func<T, string?> getParentIdSelector)
     {
         var client = new SharePointBetaClient(creds);
         var items = new List<T>();
 
         string baseEndpoint;
         if (location.IsDefaultDrive)
-            baseEndpoint = "/drive/root";
+        {
+            baseEndpoint = location.ItemId.Equals("root", StringComparison.OrdinalIgnoreCase)
+                ? "/drive/root/delta"
+                : $"/drive/items/{location.ItemId}/delta";
+        }
         else
-            baseEndpoint = $"/drives/{location.DriveId}/root";
+        {
+            baseEndpoint = location.ItemId.Equals("root", StringComparison.OrdinalIgnoreCase)
+                ? $"/drives/{location.DriveId}/root/delta"
+                : $"/drives/{location.DriveId}/items/{location.ItemId}/delta";
+        }
 
-        var request = new SharePointRequest($"{baseEndpoint}/delta?token={deltaToken}", Method.Get, creds);
+        string endpoint = string.IsNullOrEmpty(deltaToken)
+            ? baseEndpoint
+            : $"{baseEndpoint}?token={deltaToken}";
 
-        var result = client.ExecuteWithHandling<ListWrapper<T>>(request).Result;
-        items.AddRange(result.Value);
+        var request = new SharePointRequest(endpoint, Method.Get, creds);
+        var result = await client.ExecuteWithHandling<ListWrapper<T>>(request);
 
-        while (result.ODataNextLink != null)
+        if (result?.Value != null)
+            items.AddRange(result.Value);
+
+        while (!string.IsNullOrEmpty(result?.ODataNextLink))
         {
             var nextLink = result.ODataNextLink;
 
@@ -179,15 +209,29 @@ public class DriveWebhookList(InvocationContext invocationContext) : BaseInvocab
                 ? new SharePointRequest(new Uri(nextLink).ToString(), Method.Get, creds)
                 : new SharePointRequest(nextLink, Method.Get, creds);
 
-            result = client.ExecuteWithHandling<ListWrapper<T>>(request).Result;
-            items.AddRange(result.Value);
+            result = await client.ExecuteWithHandling<ListWrapper<T>>(request);
+
+            if (result?.Value != null)
+                items.AddRange(result.Value);
         }
 
-        newDeltaToken = QueryHelpers.ParseQuery(result.ODataDeltaLink!.Split("?")[1])["token"];
-        return items;
+        if (includeSubfolders == false)
+        {
+            string targetFolderId = location.ItemId.Equals("root", StringComparison.OrdinalIgnoreCase)
+                ? defaultDriveId
+                : location.ItemId;
+
+            items = items.Where(item => getParentIdSelector(item) == targetFolderId).ToList();
+        }
+
+        string newDeltaToken = null;
+        if (!string.IsNullOrEmpty(result?.ODataDeltaLink))
+            newDeltaToken = QueryHelpers.ParseQuery(result.ODataDeltaLink.Split("?")[1])["token"];
+
+        return (items, newDeltaToken);
     }
 
-    private EventPayload DeserializePayload(WebhookRequest request)
+    private static EventPayload DeserializePayload(WebhookRequest request)
         => request.Body.ToString().DeserializeObject<EventPayload>();
 
     private async Task StoreDeltaToken(string oldDeltaToken, string newDeltaToken, ItemLocationDto location)

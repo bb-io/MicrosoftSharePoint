@@ -2,7 +2,4 @@
 
 namespace Apps.MicrosoftSharePoint.Models.Responses;
 
-public class ListFoldersResponse
-{
-    public IEnumerable<FolderMetadataDto> Folders { get; set; }
-}
+public record ListFoldersResponse(IEnumerable<FolderMetadataDto> Folders);

@@ -2,7 +2,4 @@
 
 namespace Apps.MicrosoftSharePoint.Models.Responses;
 
-public class ListFilesResponse
-{
-    public IEnumerable<FileMetadataDto> Files { get; set; }
-}
+public record ListFilesResponse(IEnumerable<FileMetadataDto> Files);

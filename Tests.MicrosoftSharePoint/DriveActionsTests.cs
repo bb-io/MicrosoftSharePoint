@@ -49,7 +49,8 @@ public class DriveActionsTests : TestBase
         // Act
         var result = await action.ListFilesInFolderById(
             new FolderIdentifier { FolderId = folderId },
-            new FilterExtensions { Extensions = [".doc", ".docx"] }
+            new FilterExtensions { Extensions = [".doc", ".docx"] },
+            new SubfolderRequest { IncludeSubfolders = false }
         );
 
         // Assert
@@ -151,11 +152,14 @@ public class DriveActionsTests : TestBase
     {
         // Arrange
         var action = new DriveActions(InvocationContext, FileManager);
-        var folder = new FolderIdentifier { FolderId = "b!V1tgT5LcyEiu-qCrLWi_sYE68iUDk7hCsFdpT5k21zfKEJWmu4ZAR7Zk_O7bubtF#017O7UAGZDLPJ5EDDMMBAKEEMBLWDFFBCC" };
-        int hours = 1;
+        var folder = new FolderIdentifier 
+        { 
+            FolderId = "017O7UAG72P5YFPQ2R4NC3DPCGIRZPR54Y" 
+        };
+        var subfolders = new SubfolderRequest { IncludeSubfolders = false };
 
         // Act
-        var result = await action.ListChangedFiles(folder, hours);
+        var result = await action.ListChangedFiles(folder, hours: 1, subfolders);
 
         // Assert
         PrintJsonResult(result);
