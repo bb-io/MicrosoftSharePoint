@@ -157,6 +157,7 @@ public class DriveActions : BaseInvocable
             throw new PluginMisconfigurationException("File is null. Please provide a valid file.");
 
         var location = ItemIdParser.Parse(folderIdentifier.ParentFolderId);
+        var fileName = input.File.Name.SanitizeFileName();
 
         string baseEndpoint;
         if (location.IsDefaultDrive)
@@ -176,14 +177,14 @@ public class DriveActions : BaseInvocable
         var file = await _fileManagementClient.DownloadAsync(input.File);
         var fileBytes = await file.GetByteData();
         var fileSize = fileBytes.LongLength;
-        var contentType = Path.GetExtension(input.File.Name) == ".txt"
+        var contentType = Path.GetExtension(fileName) == ".txt"
             ? MediaTypeNames.Text.Plain
             : input.File.ContentType;
         var fileMetadata = new FileMetadataDto();
 
         if (fileSize < fourMegabytesInBytes)
         {
-            var url = $"{baseEndpoint}:/{input.File.Name}:/content?@microsoft.graph.conflictBehavior={input.ConflictBehavior}";
+            var url = $"{baseEndpoint}:/{fileName}:/content?@microsoft.graph.conflictBehavior={input.ConflictBehavior}";
 
             var uploadRequest = new SharePointRequest(url, Method.Put, _authenticationCredentialsProviders);
             uploadRequest.AddParameter(contentType, fileBytes, ParameterType.RequestBody);
@@ -194,7 +195,7 @@ public class DriveActions : BaseInvocable
         {
             const int chunkSize = 3932160;
 
-            var createSessionUrl = $"{baseEndpoint}:/{input.File.Name}:/createUploadSession";
+            var createSessionUrl = $"{baseEndpoint}:/{fileName}:/createUploadSession";
             var createUploadSessionRequest = new SharePointRequest(
                 createSessionUrl, 
                 Method.Post, 
@@ -206,7 +207,7 @@ public class DriveActions : BaseInvocable
                 ""deferCommit"": false,
                 ""item"": {{
                     ""@microsoft.graph.conflictBehavior"": ""{input.ConflictBehavior}"",
-                    ""name"": ""{input.File.Name}""
+                    ""name"": ""{fileName}""
                 }}
             }}");
 
