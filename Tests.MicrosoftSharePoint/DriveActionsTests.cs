@@ -111,6 +111,27 @@ public class DriveActionsTests : TestBase
     }
 
     [TestMethod]
+    public async Task UploadFileInFolderById_WithLineBreakInFileName_ThrowsPluginMisconfigurationException()
+    {
+        // Arrange
+        var action = new DriveActions(InvocationContext, FileManager);
+        var folder = new ParentFolderIdentifier { ParentFolderId = "017O7UAG72P5YFPQ2R4NC3DPCGIRZPR54Y" };
+        var input = new UploadFileRequest
+        {
+            File = new FileReference { Name = "uploaded\nfile.txt" },
+            ConflictBehavior = "replace"
+        };
+
+        // Act
+        var exception = await Assert.ThrowsExceptionAsync<Blackbird.Applications.Sdk.Common.Exceptions.PluginMisconfigurationException>(
+            () => action.UploadFileInFolderById(folder, input)
+        );
+
+        // Assert
+        Assert.AreEqual("File name cannot contain line breaks.", exception.Message);
+    }
+
+    [TestMethod]
     public async Task DeleteFileById_IsSuccess()
     {
         // Arrange

@@ -3,6 +3,12 @@
 namespace Apps.MicrosoftSharePoint.Extensions;
 public static class StringExtensions
 {
+    public static bool ContainsLineBreaks(this string input)
+    {
+        return !string.IsNullOrEmpty(input) &&
+               (input.Contains('\r') || input.Contains('\n'));
+    }
+
     public static string SanitizeFileName(this string input)
     {
         if (string.IsNullOrWhiteSpace(input))

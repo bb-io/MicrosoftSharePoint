@@ -156,6 +156,9 @@ public class DriveActions : BaseInvocable
         if (input.File == null || input.File?.Name == null)
             throw new PluginMisconfigurationException("File is null. Please provide a valid file.");
 
+        if (input.File.Name.ContainsLineBreaks())
+            throw new PluginMisconfigurationException("File name cannot contain line breaks.");
+
         var location = ItemIdParser.Parse(folderIdentifier.ParentFolderId);
         var fileName = input.File.Name.SanitizeFileName();
 
