@@ -1,4 +1,5 @@
-﻿using Apps.MicrosoftSharePoint.Dtos;
+﻿using Apps.MicrosoftSharePoint.Api;
+using Apps.MicrosoftSharePoint.Dtos;
 using Apps.MicrosoftSharePoint.Extensions;
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Authentication;
@@ -47,20 +48,20 @@ public abstract class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, 
                 ClientState = ApplicationConstants.SharePointClientState
             });
             
-            var response = await sharePointClient.ExecuteAsync(createSubscriptionRequest);
+            var response = await sharePointClient.ExecuteWithHandling(createSubscriptionRequest);
             var subscription = response.Content.DeserializeObject<SubscriptionDto>();
             subscriptionId = subscription.Id;
-            
-            var deltaRequest = new SharePointRequest($"{Resource}/delta", Method.Get, 
-                authenticationCredentialsProviders); 
-            response = await sharePointClient.ExecuteAsync(deltaRequest);
+
+            var deltaRequest = new SharePointRequest($"{Resource}/delta", Method.Get,
+                authenticationCredentialsProviders);
+            response = await sharePointClient.ExecuteWithHandling(deltaRequest);
             var result = response.Content.DeserializeObject<ListWrapper<object>>();
-            
+
             while (result.ODataNextLink != null)
             {
                 var endpoint = result.ODataNextLink?.Split("v1.0")[1];
                 deltaRequest = new SharePointRequest(endpoint, Method.Get, authenticationCredentialsProviders);
-                response = await sharePointClient.ExecuteAsync(deltaRequest);
+                response = await sharePointClient.ExecuteWithHandling(deltaRequest);
                 result = response.Content.DeserializeObject<ListWrapper<object>>();
             }
             
@@ -86,9 +87,9 @@ public abstract class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, 
         if (webhooksLeft == 0)
         {
             await bridgeService.DeleteValue(subscriptionId);
-            var deleteSubscriptionRequest = new SharePointRequest($"/subscriptions/{subscriptionId}", 
+            var deleteSubscriptionRequest = new SharePointRequest($"/subscriptions/{subscriptionId}",
                 Method.Delete, authenticationCredentialsProviders);
-            await sharePointClient.ExecuteAsync(deleteSubscriptionRequest);
+            await sharePointClient.ExecuteWithHandling(deleteSubscriptionRequest);
         }
     }
 
@@ -104,16 +105,16 @@ public abstract class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, 
         {
             ExpirationDateTime = (DateTime.Now + TimeSpan.FromMinutes(40000)).ToString("O")
         });
-        await sharePointClient.ExecuteAsync(updateSubscriptionRequest);
+        await sharePointClient.ExecuteWithHandling(updateSubscriptionRequest);
     }
 
     private async Task<SubscriptionDto?> GetTargetSubscription(
-        IEnumerable<AuthenticationCredentialsProvider> authenticationCredentialsProviders, 
-        RestClient sharePointClient)
+        IEnumerable<AuthenticationCredentialsProvider> authenticationCredentialsProviders,
+        SharePointClient sharePointClient)
     {
-        var subscriptionsRequest = new SharePointRequest("/subscriptions", Method.Get, 
+        var subscriptionsRequest = new SharePointRequest("/subscriptions", Method.Get,
             authenticationCredentialsProviders);
-        var response = await sharePointClient.ExecuteAsync(subscriptionsRequest);
+        var response = await sharePointClient.ExecuteWithHandling(subscriptionsRequest);
         var subscriptions = response.Content.DeserializeObject<SubscriptionWrapper>().Value;
         var targetSubscription = subscriptions.FirstOrDefault(s => s.Resource == Resource 
                                                                    && s.ChangeType == _subscriptionEvent

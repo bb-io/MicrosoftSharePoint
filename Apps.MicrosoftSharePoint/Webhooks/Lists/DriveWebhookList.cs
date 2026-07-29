@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using Apps.MicrosoftSharePoint.Api;
 using Apps.MicrosoftSharePoint.Dtos;
 using Apps.MicrosoftSharePoint.Extensions;
 using Apps.MicrosoftSharePoint.Helper;
@@ -213,7 +214,7 @@ public class DriveWebhookList(InvocationContext invocationContext) : BaseInvocab
 
         var sharePointClient = new SharePointClient();
         var subscriptionsRequest = new SharePointRequest("/subscriptions", Method.Get, creds);
-        var response = await sharePointClient.ExecuteAsync(subscriptionsRequest);
+        var response = await sharePointClient.ExecuteWithHandling(subscriptionsRequest);
         var subscriptions = response.Content.DeserializeObject<SubscriptionWrapper>().Value;
 
         var targetSubscription = subscriptions.Single(s => s.Resource == resource
