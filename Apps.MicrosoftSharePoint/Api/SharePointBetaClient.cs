@@ -1,18 +1,19 @@
-﻿using Apps.MicrosoftSharePoint.Dtos;
-using Blackbird.Applications.Sdk.Common.Authentication;
+﻿using System.Net;
+using Apps.MicrosoftSharePoint.Dtos;
 using Apps.MicrosoftSharePoint.Extensions;
-using RestSharp;
+using Blackbird.Applications.Sdk.Common.Authentication;
 using Blackbird.Applications.Sdk.Common.Exceptions;
-using System.Globalization;
-using System.Net;
+using Polly.Retry;
+using RestSharp;
 
-namespace Apps.MicrosoftSharePoint;
+namespace Apps.MicrosoftSharePoint.Api;
 
 public class SharePointBetaClient : RestClient
 {
-    private const int MaxRetries = 6;
-    private const int InitialDelayMs = 1500;
-    
+    private const int RetryCount = 8;
+
+    private readonly AsyncRetryPolicy<RestResponse> _retryPolicy = SharePointRetryPolicy.Create(RetryCount);
+
     public SharePointBetaClient(IEnumerable<AuthenticationCredentialsProvider> authenticationCredentialsProviders) 
         : base(new RestClientOptions
         {
@@ -32,31 +33,14 @@ public class SharePointBetaClient : RestClient
         var response = await ExecuteWithHandling(request);
         return response.Content.DeserializeObject<T>();
     }
-
+    
     public async Task<RestResponse> ExecuteWithHandling(RestRequest request)
     {
-        int delay = InitialDelayMs;
-        RestResponse? response = null;
+        var response = await _retryPolicy.ExecuteAsync(() => ExecuteAsync(request));
 
-        for (int attempt = 1; attempt <= MaxRetries; attempt++)
-        {
-            response = await ExecuteAsync(request);
+        if (response.IsSuccessful)
+            return response;
 
-            if (response.IsSuccessful)
-                return response;
-
-            if (attempt < MaxRetries &&
-                (response.StatusCode == HttpStatusCode.InternalServerError ||
-                 response.StatusCode == HttpStatusCode.ServiceUnavailable || 
-                 response.StatusCode == HttpStatusCode.BadRequest ||
-                 response.StatusCode == HttpStatusCode.TooManyRequests))
-            {
-                await Task.Delay(delay);
-                delay *= 2;
-                continue;
-            }
-            break;
-        }
         throw ConfigureErrorException(response);
     }
 
@@ -66,8 +50,7 @@ public class SharePointBetaClient : RestClient
         {
             return new PluginApplicationException("Request failed: No response received from SharePoint.");
         }
-
-        // Try to handle by status code first if we have it
+        
         if (response.StatusCode == HttpStatusCode.ServiceUnavailable)
         {
             return new PluginApplicationException("SharePoint service is currently unavailable. All retry attempts failed. Please try again later.");
@@ -82,8 +65,7 @@ public class SharePointBetaClient : RestClient
         {
             return new PluginApplicationException("Too many requests to SharePoint. All retry attempts failed. Please wait and try again later.");
         }
-
-        // Try to parse error details from response
+        
         try
         {
             var responseContent = response.Content ?? string.Empty;

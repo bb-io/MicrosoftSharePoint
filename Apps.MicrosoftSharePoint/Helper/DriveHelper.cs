@@ -1,4 +1,5 @@
-﻿using Apps.MicrosoftSharePoint.Models.Entities;
+﻿using Apps.MicrosoftSharePoint.Api;
+using Apps.MicrosoftSharePoint.Models.Entities;
 using Blackbird.Applications.Sdk.Common.Authentication;
 using RestSharp;
 

@@ -1,10 +1,10 @@
-﻿using Apps.MicrosoftSharePoint.Dtos;
+﻿using Apps.MicrosoftSharePoint.Api;
+using Apps.MicrosoftSharePoint.Dtos;
 using Blackbird.Applications.Sdk.Common.Authentication;
 using Blackbird.Applications.Sdk.Common.Connections;
 using Apps.MicrosoftSharePoint.Extensions;
 using RestSharp;
 using Blackbird.Applications.Sdk.Common.Exceptions;
-using System.Net;
 
 namespace Apps.MicrosoftSharePoint.Connections;
 
@@ -59,8 +59,12 @@ public class ConnectionDefinition : IConnectionDefinition
         var request = new RestRequest(endpoint);
         request.AddHeader("Authorization", $"Bearer {accessToken}");
 
-        var response = client.Get(request);
-        if (response.StatusCode != HttpStatusCode.OK || string.IsNullOrWhiteSpace(response.Content))
+        // Go through ExecuteWithHandling so throttling (429) is retried with backoff. RestSharp's Get()
+        // extension throws on any non-success status, which turned a transient throttle into a failed
+        // connection validation / token refresh.
+        var response = client.ExecuteWithHandling(request).GetAwaiter().GetResult();
+
+        if (string.IsNullOrWhiteSpace(response.Content))
             throw new PluginApplicationException(
                 $"Failed to resolve site by URL '{siteUrl}'. " +
                 $"Status: {(int)response.StatusCode} {response.StatusDescription}. Body: {response.Content}");
