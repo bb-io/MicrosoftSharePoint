@@ -1,4 +1,5 @@
-﻿using Blackbird.Applications.Sdk.Common;
+﻿using System.Globalization;
+using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Authentication;
 using Blackbird.Applications.Sdk.Common.Authentication.OAuth2;
 using Blackbird.Applications.Sdk.Common.Invocation;
@@ -7,7 +8,7 @@ using Newtonsoft.Json;
 namespace Apps.MicrosoftSharePoint.Auth.OAuth2;
 
 public class OAuth2TokenService : BaseInvocable, IOAuth2TokenService, ITokenRefreshable
-{ 
+{
     private const string TokenUrl = "https://login.microsoftonline.com/common/oauth2/v2.0/token";
     private const string ExpiresAtKeyName = "expires_at";
 
@@ -15,25 +16,22 @@ public class OAuth2TokenService : BaseInvocable, IOAuth2TokenService, ITokenRefr
     {
     }
 
-    public bool IsRefreshToken(Dictionary<string, string> values) 
-        => values.TryGetValue(ExpiresAtKeyName, out var expireValue) && DateTime.UtcNow > DateTime.Parse(expireValue);
+    public bool IsRefreshToken(Dictionary<string, string> values)
+        => !TryGetExpiresAtUtc(values, out var expireDate) || DateTime.UtcNow > expireDate;
 
     public int? GetRefreshTokenExprireInMinutes(Dictionary<string, string> values)
     {
-        if (!values.TryGetValue(ExpiresAtKeyName, out var expireValue))
-            return null;
-
-        if (!DateTime.TryParse(expireValue, out var expireDate))
-            return null;
+        if (!TryGetExpiresAtUtc(values, out var expireDate))
+            return 1;
 
         var difference = expireDate - DateTime.UtcNow;
 
-        return (int)difference.TotalMinutes - 5;
+        return Math.Clamp((int)difference.TotalMinutes - 5, 1, 120);
     }
 
-    public async Task<Dictionary<string, string>> RefreshToken(Dictionary<string, string> values, 
-        CancellationToken cancellationToken) 
-    { 
+    public async Task<Dictionary<string, string>> RefreshToken(Dictionary<string, string> values,
+        CancellationToken cancellationToken)
+    {
         const string grantType = "refresh_token";
         var bodyParameters = new Dictionary<string, string>
         {
@@ -44,47 +42,69 @@ public class OAuth2TokenService : BaseInvocable, IOAuth2TokenService, ITokenRefr
         };
         return await RequestToken(bodyParameters, cancellationToken);
     }
-    
-    public async Task<Dictionary<string, string?>> RequestToken(string state, string code, 
+
+    public async Task<Dictionary<string, string?>> RequestToken(string state, string code,
         Dictionary<string, string> values, CancellationToken cancellationToken)
-    { 
-        const string grantType = "authorization_code"; 
-        var bodyParameters = new Dictionary<string, string> 
-        { 
+    {
+        const string grantType = "authorization_code";
+        var bodyParameters = new Dictionary<string, string>
+        {
             { "code", code },
             { "grant_type", grantType },
-            { "client_id", ApplicationConstants.ClientId }, 
+            { "client_id", ApplicationConstants.ClientId },
             { "client_secret", ApplicationConstants.ClientSecret },
-            { "redirect_uri", $"{InvocationContext.UriInfo.BridgeServiceUrl.ToString().TrimEnd('/')}/AuthorizationCode" }
+            {
+                "redirect_uri",
+                $"{InvocationContext.UriInfo.BridgeServiceUrl.ToString().TrimEnd('/')}/AuthorizationCode"
+            }
         };
         return await RequestToken(bodyParameters, cancellationToken);
     }
 
     public Task RevokeToken(Dictionary<string, string> values)
-    { 
+    {
         throw new NotImplementedException();
     }
-    
-    private async Task<Dictionary<string, string>> RequestToken(Dictionary<string, string> bodyParameters, 
+
+    private async Task<Dictionary<string, string>> RequestToken(Dictionary<string, string> bodyParameters,
         CancellationToken cancellationToken)
-    { 
+    {
         var utcNow = DateTime.UtcNow;
-        using HttpClient httpClient = new HttpClient(); 
-        httpClient.DefaultRequestHeaders.Add("Accept", "application/json"); 
-        using var httpContent = new FormUrlEncodedContent(bodyParameters); 
-        using var response = await httpClient.PostAsync(TokenUrl, httpContent, cancellationToken); 
+        using HttpClient httpClient = new HttpClient();
+        httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
+        using var httpContent = new FormUrlEncodedContent(bodyParameters);
+        using var response = await httpClient.PostAsync(TokenUrl, httpContent, cancellationToken);
         var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
 
         if (!response.IsSuccessStatusCode)
         {
             throw new InvalidOperationException($"Failed to obtain token: {responseContent}");
         }
+
         var resultDictionary = JsonConvert.DeserializeObject<Dictionary<string, object>>(responseContent)?
-                                   .ToDictionary(r => r.Key, r => r.Value?.ToString()) 
+                                   .ToDictionary(r => r.Key, r => r.Value?.ToString())
                                ?? throw new InvalidOperationException($"Invalid response content: {responseContent}");
         var expiresIn = int.Parse(resultDictionary["expires_in"]);
         var expiresAt = utcNow.AddSeconds(expiresIn);
-        resultDictionary.Add(ExpiresAtKeyName, expiresAt.ToString());
+        resultDictionary.Add(ExpiresAtKeyName, expiresAt.ToString("O", CultureInfo.InvariantCulture));
         return resultDictionary;
+    }
+
+    private static bool TryGetExpiresAtUtc(Dictionary<string, string> values, out DateTime expireDate)
+    {
+        expireDate = default;
+
+        if (!values.TryGetValue(ExpiresAtKeyName, out var expireValue) || string.IsNullOrWhiteSpace(expireValue))
+            return false;
+
+        if (!DateTime.TryParse(expireValue, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var parsed)
+            && !DateTime.TryParse(expireValue, CultureInfo.CurrentCulture, DateTimeStyles.None, out parsed))
+            return false;
+
+        expireDate = parsed.Kind == DateTimeKind.Local
+            ? parsed.ToUniversalTime()
+            : DateTime.SpecifyKind(parsed, DateTimeKind.Utc);
+        
+        return true;
     }
 }
