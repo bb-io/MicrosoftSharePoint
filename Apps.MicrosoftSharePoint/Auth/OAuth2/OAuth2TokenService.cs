@@ -2,19 +2,17 @@
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Authentication;
 using Blackbird.Applications.Sdk.Common.Authentication.OAuth2;
+using Blackbird.Applications.Sdk.Common.Exceptions;
 using Blackbird.Applications.Sdk.Common.Invocation;
 using Newtonsoft.Json;
 
 namespace Apps.MicrosoftSharePoint.Auth.OAuth2;
 
-public class OAuth2TokenService : BaseInvocable, IOAuth2TokenService, ITokenRefreshable
+public class OAuth2TokenService(InvocationContext invocationContext)
+    : BaseInvocable(invocationContext), IOAuth2TokenService, ITokenRefreshable
 {
     private const string TokenUrl = "https://login.microsoftonline.com/common/oauth2/v2.0/token";
     private const string ExpiresAtKeyName = "expires_at";
-
-    public OAuth2TokenService(InvocationContext invocationContext) : base(invocationContext)
-    {
-    }
 
     public bool IsRefreshToken(Dictionary<string, string> values)
         => !TryGetExpiresAtUtc(values, out var expireDate) || DateTime.UtcNow > expireDate;
@@ -78,7 +76,14 @@ public class OAuth2TokenService : BaseInvocable, IOAuth2TokenService, ITokenRefr
 
         if (!response.IsSuccessStatusCode)
         {
-            throw new InvalidOperationException($"Failed to obtain token: {responseContent}");
+            if (responseContent.Contains("invalid_grant"))
+            {
+                throw new PluginMisconfigurationException(
+                    "Microsoft rejected the saved login (expired, revoked or blocked by your org's device policy). " +
+                    $"Reconnect the SharePoint connection. Details: {responseContent}");
+            }
+            
+            throw new PluginApplicationException($"Failed to obtain token: {responseContent}");
         }
 
         var resultDictionary = JsonConvert.DeserializeObject<Dictionary<string, object>>(responseContent)?
